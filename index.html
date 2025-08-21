@@ -7,7 +7,7 @@
     
     <meta name="theme-color" content="#EC4899"/>
     <link rel="apple-touch-icon" href="https://placehold.co/192x192/EC4899/FFFFFF?text=BJ">
-    <link rel="manifest" id="manifest">
+    <link rel="manifest" href="manifest.json">
 
     <script src="https://cdn-tailwindcss.vercel.app/"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -821,6 +821,23 @@
             });
         }
         main();
+        
+        </script>
+
+    <script>
+      // Verifica se o navegador suporta Service Workers
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          // Tenta registrar o arquivo sw.js
+          navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+              console.log('Service Worker registrado com sucesso:', registration);
+            })
+            .catch(error => {
+              console.log('Falha ao registrar o Service Worker:', error);
+            });
+        });
+      }
     </script>
-</body>
+    </body>
 </html>
