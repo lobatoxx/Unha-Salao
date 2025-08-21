@@ -297,7 +297,7 @@
             });
         }
 
-        function renderProfessionals(professionalsList, professionalModalTitle, professionalIdToEdit, addProfessionalModal, professionalServicesChecklist) {
+        function renderProfessionals(professionalsList) {
             if (!professionalsList) return;
             professionalsList.innerHTML = '';
             state.professionals.forEach(prof => {
@@ -314,7 +314,7 @@
             });
         }
 
-        function renderClients(clientsList, clientModalTitle, clientIdToEdit, addClientModal) {
+        function renderClients(clientsList) {
             if (!clientsList) return;
             clientsList.innerHTML = '';
             state.clients.forEach(client => {
@@ -331,7 +331,7 @@
             });
         }
 
-        function renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, dateString) {
+        function renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, dateString, openAppointmentModal) {
             if (dateString) { state.selectedDate = dateString; }
             const selected = state.selectedDate;
             if (!selected) {
@@ -379,7 +379,7 @@
             appointmentsForDay.appendChild(newAppointmentBtn);
         }
 
-        function renderCalendar(calendarDays, currentMonthYear) {
+        function renderCalendar(calendarDays, currentMonthYear, appointmentsForDay, appointmentsTitle, openAppointmentModal) {
             calendarDays.innerHTML = '';
             const date = state.currentDate;
             const year = date.getFullYear();
@@ -408,7 +408,7 @@
                     day.addEventListener('click', (e) => {
                         document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('day-selected'));
                         e.currentTarget.classList.add('day-selected');
-                        renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, e.currentTarget.dataset.date);
+                        renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, e.currentTarget.dataset.date, openAppointmentModal);
                     });
                 }
             });
@@ -572,10 +572,10 @@
             });
             logoutButton.addEventListener('click', () => signOut(auth));
 
-            prevMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() - 1); renderCalendar(calendarDays, currentMonthYear); renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl); });
-            nextMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() + 1); renderCalendar(calendarDays, currentMonthYear); renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl); });
-            financeiroPrevMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() - 1); renderCalendar(calendarDays, currentMonthYear); renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl); });
-            financeiroNextMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() + 1); renderCalendar(calendarDays, currentMonthYear); renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl); });
+            prevMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() - 1); renderCalendar(calendarDays, currentMonthYear, appointmentsForDay, appointmentsTitle, openAppointmentModal); renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl); });
+            nextMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() + 1); renderCalendar(calendarDays, currentMonthYear, appointmentsForDay, appointmentsTitle, openAppointmentModal); renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl); });
+            financeiroPrevMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() - 1); renderCalendar(calendarDays, currentMonthYear, appointmentsForDay, appointmentsTitle, openAppointmentModal); renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl); });
+            financeiroNextMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() + 1); renderCalendar(calendarDays, currentMonthYear, appointmentsForDay, appointmentsTitle, openAppointmentModal); renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl); });
 
             openServiceModalBtn.addEventListener('click', () => {
                 serviceModalTitle.textContent = 'Adicionar Serviço';
@@ -715,14 +715,14 @@
                         onSnapshot(query(state.collections[key]), (snapshot) => {
                             state[key] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), date: doc.data().date?.toDate() }));
                             renderServices(servicesList, serviceModalTitle, serviceIdToEdit, addServiceModal);
-                            renderProfessionals(professionalsList, professionalModalTitle, professionalIdToEdit, addProfessionalModal, professionalServicesChecklist);
-                            renderClients(clientsList, clientModalTitle, clientIdToEdit, addClientModal);
-                            renderAppointmentsForDay(appointmentsForDay, appointmentsTitle);
+                            renderProfessionals(professionalsList);
+                            renderClients(clientsList);
+                            renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, null, openAppointmentModal);
                             renderDashboard(agendamentosHojeEl, faturamentoHojeEl, totalClientesEl, totalServicosEl, proximosAgendamentosEl);
                             renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl);
                         });
                     });
-                    renderCalendar(calendarDays, currentMonthYear);
+                    renderCalendar(calendarDays, currentMonthYear, appointmentsForDay, appointmentsTitle, openAppointmentModal);
                     appContainer.classList.remove('hidden'); 
                     loginPage.classList.add('hidden');
                 } else {
