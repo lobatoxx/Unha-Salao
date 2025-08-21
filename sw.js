@@ -4,7 +4,7 @@ const CACHE_NAME = 'belezaja-cache-v1';
 // Ficheiros a serem guardados em cache para funcionamento offline
 const urlsToCache = [
   '/',
-  '/app.html',
+  '/index.html',
   'https://cdn-tailwindcss.vercel.app/',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'
@@ -52,3 +52,4 @@ self.addEventListener('activate', event => {
     })
   );
 });
+
