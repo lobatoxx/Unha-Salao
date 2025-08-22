@@ -112,9 +112,12 @@
                     <button id="nextMonthBtn" class="p-2 rounded-full hover:bg-gray-100"><i class="fas fa-chevron-right"></i></button>
                 </div>
 
-                <div class="view-toggle flex justify-center mb-4 bg-gray-200 rounded-lg p-1">
-                    <button id="monthViewBtn" class="w-1/2 py-1 text-sm font-semibold rounded-md active">Mês</button>
-                    <button id="dayViewBtn" class="w-1/2 py-1 text-sm font-semibold rounded-md">Dia</button>
+                <div class="flex items-center justify-center mb-4 gap-2">
+                    <div class="view-toggle flex w-full bg-gray-200 rounded-lg p-1">
+                        <button id="monthViewBtn" class="w-1/2 py-1 text-sm font-semibold rounded-md active">Mês</button>
+                        <button id="dayViewBtn" class="w-1/2 py-1 text-sm font-semibold rounded-md">Dia</button>
+                    </div>
+                    <button id="openBlockTimeModalBtn" title="Bloquear Horário" class="flex-shrink-0 bg-gray-600 text-white w-10 h-10 rounded-lg flex items-center justify-center shadow-lg hover:bg-gray-700 transition"><i class="fas fa-lock"></i></button>
                 </div>
 
                 <div id="monthlyView">
@@ -258,6 +261,40 @@
             </form>
         </div>
     </div>
+    <div id="blockTimeModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-40">
+        <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
+             <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold">Bloquear Horário</h3>
+                <button id="closeBlockTimeModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <form id="blockTimeForm">
+                <div class="space-y-4">
+                    <input type="date" id="blockDate" class="w-full px-4 py-2 border rounded-lg bg-gray-100" readonly>
+                    <div id="blockProfessionalAdminView">
+                        <label for="blockProfessional" class="text-sm font-medium text-gray-700">Profissional</label>
+                        <select id="blockProfessional" class="w-full px-4 py-2 border rounded-lg" required></select>
+                    </div>
+                    <div id="blockProfessionalUserView" class="hidden">
+                        <label class="text-sm font-medium text-gray-700">Profissional</label>
+                        <p id="blockProfessionalName" class="w-full px-4 py-2 border rounded-lg bg-gray-100"></p>
+                    </div>
+                    <div>
+                        <label for="blockStartTime" class="text-sm font-medium text-gray-700">Início</label>
+                        <input type="time" id="blockStartTime" class="w-full px-4 py-2 border rounded-lg" required>
+                    </div>
+                    <div>
+                        <label for="blockEndTime" class="text-sm font-medium text-gray-700">Fim</label>
+                        <input type="time" id="blockEndTime" class="w-full px-4 py-2 border rounded-lg" required>
+                    </div>
+                    <input type="text" id="blockReason" placeholder="Motivo (opcional, ex: Almoço)" class="w-full px-4 py-2 border rounded-lg">
+                </div>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300" onclick="document.getElementById('blockTimeModal').classList.add('hidden')">Cancelar</button>
+                    <button type="submit" class="bg-gray-800 text-white px-4 py-2 rounded-lg font-semibold hover:bg-black">Bloquear</button>
+                </div>
+            </form>
+        </div>
+    </div>
     <div id="confirmModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6 text-center">
             <p id="confirmModalText" class="mb-4">Tem certeza?</p>
@@ -374,26 +411,37 @@
                 appointmentsForDay.innerHTML = `<p class="text-center text-gray-500 text-sm">Nenhum agendamento para este dia.</p>`;
             } else {
                 dayAppointments.forEach(app => {
-                    const client = state.clients.find(c => c.id === app.clientId)?.name || '...';
-                    const service = state.services.find(s => s.id === app.serviceId);
-                    const serviceName = service?.name || '...';
-                    const prof = state.professionals.find(p => p.id === app.professionalId)?.name || '...';
-                    const startTime = app.date;
-                    const duration = service?.duration || 0;
-                    const endTime = new Date(startTime.getTime() + duration * 60000);
-                    const startTimeStr = startTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                    const endTimeStr = endTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                     const el = document.createElement('div');
                     el.className = 'bg-white p-3 rounded-lg shadow-sm border cursor-pointer hover:bg-gray-50';
                     el.dataset.id = app.id;
-                    el.innerHTML = `
-                        <div class="flex justify-between items-start pointer-events-none">
-                            <div>
+
+                    if (app.type === 'block') {
+                        const startTimeStr = app.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                        const endTime = new Date(app.date.getTime() + app.duration * 60000);
+                        const endTimeStr = endTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                        el.innerHTML = `
+                            <div class="pointer-events-none">
+                                <p class="font-bold text-gray-600">${startTimeStr} - ${endTimeStr}</p>
+                                <p class="font-semibold text-gray-800"><i class="fas fa-lock mr-2"></i>Bloqueado</p>
+                                <p class="text-sm text-gray-600">${app.reason || 'Motivo não informado'}</p>
+                            </div>`;
+                    } else {
+                        const client = state.clients.find(c => c.id === app.clientId)?.name || '...';
+                        const service = state.services.find(s => s.id === app.serviceId);
+                        const serviceName = service?.name || '...';
+                        const prof = state.professionals.find(p => p.id === app.professionalId)?.name || '...';
+                        const startTime = app.date;
+                        const duration = service?.duration || 0;
+                        const endTime = new Date(startTime.getTime() + duration * 60000);
+                        const startTimeStr = startTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                        const endTimeStr = endTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                        el.innerHTML = `
+                            <div class="pointer-events-none">
                                 <p class="font-bold text-pink-600">${startTimeStr} - ${endTimeStr}</p>
                                 <p class="font-semibold text-gray-800">${client}</p>
                                 <p class="text-sm text-gray-600">${serviceName} com ${prof}</p>
-                            </div>
-                        </div>`;
+                            </div>`;
+                    }
                     appointmentsForDay.appendChild(el);
                 });
             }
@@ -467,10 +515,11 @@
             dailyViewTimeSlots.appendChild(backgroundSlots);
             
             dayAppointments.forEach(app => {
-                const service = state.services.find(s => s.id === app.serviceId);
-                const client = state.clients.find(c => c.id === app.clientId);
+                const isBlock = app.type === 'block';
+                const service = !isBlock ? state.services.find(s => s.id === app.serviceId) : null;
+                const client = !isBlock ? state.clients.find(c => c.id === app.clientId) : null;
                 const professional = state.professionals.find(p => p.id === app.professionalId);
-                const duration = service?.duration || SLOT_DURATION_MINUTES;
+                const duration = isBlock ? app.duration : (service?.duration || SLOT_DURATION_MINUTES);
                 
                 const startMinutes = (app.date.getHours() * 60 + app.date.getMinutes()) - (START_HOUR * 60);
                 const topPosition = (startMinutes / SLOT_DURATION_MINUTES) * SLOT_HEIGHT_REM;
@@ -478,9 +527,9 @@
                 
                 const appEndTime = new Date(app.date.getTime() + duration * 60000);
                 const overlappingApps = dayAppointments.filter(otherApp => {
-                    if (app.id === otherApp.id) return true;
-                    const otherService = state.services.find(s => s.id === otherApp.serviceId);
-                    const otherDuration = otherService?.duration || 0;
+                    const otherIsBlock = otherApp.type === 'block';
+                    const otherService = !otherIsBlock ? state.services.find(s => s.id === otherApp.serviceId) : null;
+                    const otherDuration = otherIsBlock ? otherApp.duration : (otherService?.duration || 0);
                     const otherAppEndTime = new Date(otherApp.date.getTime() + otherDuration * 60000);
                     return app.date < otherAppEndTime && otherApp.date < appEndTime;
                 });
@@ -492,7 +541,11 @@
                 const left = columnIndex * width;
                 
                 const el = document.createElement('div');
-                el.className = 'absolute flex flex-col p-2 border-l-4 border-pink-500 bg-pink-100 rounded-r-lg overflow-hidden cursor-pointer hover:bg-pink-200';
+                const bgColor = isBlock ? 'bg-gray-200' : 'bg-pink-100';
+                const borderColor = isBlock ? 'border-gray-500' : 'border-pink-500';
+                const hoverBgColor = isBlock ? 'hover:bg-gray-300' : 'hover:bg-pink-200';
+                
+                el.className = `absolute flex flex-col p-2 border-l-4 ${borderColor} ${bgColor} ${hoverBgColor} rounded-r-lg overflow-hidden cursor-pointer`;
                 el.style.top = `${topPosition}rem`;
                 el.style.height = `${height}rem`;
                 el.style.left = `calc(${left}% + 3.5rem)`;
@@ -500,12 +553,30 @@
                 el.style.marginRight = '0.2rem';
                 el.dataset.id = app.id;
 
-                el.innerHTML = `
-                    <p class="font-semibold text-xs text-pink-900 truncate pointer-events-none">${client?.name || ''}</p>
-                    <p class="text-xs text-pink-700 truncate pointer-events-none">${service?.name || ''}</p>
-                    <p class="text-xs text-pink-600 truncate pointer-events-none">${professional?.name || ''}</p>
-                `;
-                el.onclick = () => openAppointmentModal(app.date.toISOString().split('T')[0], app.id);
+                if(isBlock) {
+                    el.innerHTML = `
+                        <div class="flex items-center gap-2 pointer-events-none">
+                            <i class="fas fa-lock text-gray-600 text-xs"></i>
+                            <div>
+                                <p class="font-semibold text-xs text-gray-800 truncate">${app.reason || 'Bloqueado'}</p>
+                                <p class="text-xs text-gray-600 truncate">${professional?.name || ''}</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    el.innerHTML = `
+                        <p class="font-semibold text-xs text-pink-900 truncate pointer-events-none">${client?.name || ''}</p>
+                        <p class="text-xs text-pink-700 truncate pointer-events-none">${service?.name || ''}</p>
+                        <p class="text-xs text-pink-600 truncate pointer-events-none">${professional?.name || ''}</p>
+                    `;
+                }
+                el.onclick = () => {
+                    if (isBlock) {
+                        // Future feature: open edit block modal
+                    } else {
+                        openAppointmentModal(app.date.toISOString().split('T')[0], app.id);
+                    }
+                };
 
                 dailyViewTimeSlots.appendChild(el);
             });
@@ -515,7 +586,7 @@
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const todayStr = today.toISOString().split('T')[0];
-            const agendamentosDeHoje = state.appointments.filter(app => app.date && app.date.toISOString().split('T')[0] === todayStr);
+            const agendamentosDeHoje = state.appointments.filter(app => app.type !== 'block' && app.date && app.date.toISOString().split('T')[0] === todayStr);
             agendamentosHojeEl.textContent = agendamentosDeHoje.length;
             const faturamentoDeHoje = agendamentosDeHoje.reduce((total, app) => {
                 const service = state.services.find(s => s.id === app.serviceId);
@@ -526,7 +597,7 @@
                 totalClientesEl.textContent = state.clients.length;
                 totalServicosEl.textContent = state.services.length;
             }
-            const proximos = state.appointments.filter(app => app.date && app.date >= today).sort((a, b) => a.date - b.date).slice(0, 3);
+            const proximos = state.appointments.filter(app => app.type !== 'block' && app.date && app.date >= today).sort((a, b) => a.date - b.date).slice(0, 3);
             proximosAgendamentosEl.innerHTML = '';
             if (proximos.length === 0) {
                 proximosAgendamentosEl.innerHTML = `<p class="text-center text-gray-500 text-sm">Nenhum agendamento próximo.</p>`;
@@ -551,7 +622,7 @@
             const month = date.getMonth();
             financeiroCurrentMonthYear.textContent = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
             const appointmentsInMonth = state.appointments.filter(app => {
-                return app.date && app.date.getFullYear() === year && app.date.getMonth() === month;
+                return app.type !== 'block' && app.date && app.date.getFullYear() === year && app.date.getMonth() === month;
             });
             if (state.role === 'admin') {
                 let totalMonthRevenue = 0;
@@ -629,23 +700,36 @@
             confirmAction = onConfirm;
         }
 
-        function hasScheduleConflict(appointmentDetails) {
-            const { id: appointmentId, professionalId, date, serviceId } = appointmentDetails;
-            const service = state.services.find(s => s.id === serviceId);
-            if (!service) return false;
+        function hasScheduleConflict(conflictDetails) {
+            const { id: appointmentId, professionalId, date, serviceId, duration: blockDuration } = conflictDetails;
+            
+            let duration = 0;
+            if (serviceId) { // It's a booking
+                const service = state.services.find(s => s.id === serviceId);
+                if (!service) return false;
+                duration = service.duration;
+            } else { // It's a block
+                duration = blockDuration;
+            }
             
             const newStartTime = date.getTime();
-            const newEndTime = newStartTime + (service.duration * 60000);
+            const newEndTime = newStartTime + (duration * 60000);
 
             for (const existingApp of state.appointments) {
                 if (existingApp.professionalId !== professionalId) continue;
                 if (appointmentId && existingApp.id === appointmentId) continue;
 
-                const existingService = state.services.find(s => s.id === existingApp.serviceId);
-                if (!existingService) continue;
-
+                let existingDuration = 0;
+                if (existingApp.type === 'block') {
+                    existingDuration = existingApp.duration;
+                } else {
+                    const existingService = state.services.find(s => s.id === existingApp.serviceId);
+                    if (!existingService) continue;
+                    existingDuration = existingService.duration;
+                }
+                
                 const existingStartTime = existingApp.date.getTime();
-                const existingEndTime = existingStartTime + (existingService.duration * 60000);
+                const existingEndTime = existingStartTime + (existingDuration * 60000);
 
                 if (newStartTime < existingEndTime && existingStartTime < newEndTime) {
                     return true;
@@ -653,6 +737,7 @@
             }
             return false;
         }
+
 
         function main() {
             const loadingOverlay = document.getElementById('loadingOverlay');
@@ -703,6 +788,10 @@
             const appointmentModalTitle = document.getElementById('appointmentModalTitle');
             const appointmentIdToEdit = document.getElementById('appointmentIdToEdit');
             const deleteAppointmentBtn = document.getElementById('deleteAppointmentBtn');
+            const openBlockTimeModalBtn = document.getElementById('openBlockTimeModalBtn');
+            const closeBlockTimeModalBtn = document.getElementById('closeBlockTimeModalBtn');
+            const blockTimeModal = document.getElementById('blockTimeModal');
+            const blockTimeForm = document.getElementById('blockTimeForm');
             const confirmModal = document.getElementById('confirmModal');
             const confirmModalOk = document.getElementById('confirmModalOk');
             const confirmModalCancel = document.getElementById('confirmModalCancel');
@@ -879,6 +968,7 @@
                     clientId: appointmentClient.value,
                     professionalId: professionalId,
                     serviceId: serviceId,
+                    type: 'booking',
                     status: 'agendado'
                 };
                 if (!data.clientId || !data.professionalId || !data.serviceId) { alert('Preencha todos os campos.'); return; }
@@ -898,6 +988,60 @@
                         })
                         .catch(err => console.error(err));
                 });
+            });
+
+            openBlockTimeModalBtn.addEventListener('click', () => {
+                blockTimeForm.reset();
+                document.getElementById('blockDate').value = state.selectedDate;
+                const profSelect = document.getElementById('blockProfessional');
+                const profSelectContainer = document.getElementById('blockProfessionalAdminView');
+                const profNameContainer = document.getElementById('blockProfessionalUserView');
+                if (state.role === 'admin') {
+                    profSelectContainer.style.display = 'block';
+                    profNameContainer.style.display = 'none';
+                    profSelect.innerHTML = '<option value="">Selecione um profissional</option>';
+                    state.professionals.forEach(p => profSelect.innerHTML += `<option value="${p.id}">${p.name}</option>`);
+                } else {
+                    profSelectContainer.style.display = 'none';
+                    profNameContainer.style.display = 'block';
+                    document.getElementById('blockProfessionalName').textContent = state.professionalProfile.name;
+                }
+                blockTimeModal.classList.remove('hidden');
+            });
+            closeBlockTimeModalBtn.addEventListener('click', () => blockTimeModal.classList.add('hidden'));
+            blockTimeForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const date = document.getElementById('blockDate').value;
+                const startTime = document.getElementById('blockStartTime').value;
+                const endTime = document.getElementById('blockEndTime').value;
+                const professionalId = state.role === 'admin' ? document.getElementById('blockProfessional').value : state.professionalProfile.id;
+                
+                if (!startTime || !endTime || !professionalId || endTime <= startTime) {
+                    alert('Por favor, preencha todos os campos e verifique se o horário de término é após o de início.');
+                    return;
+                }
+
+                const startDateTime = new Date(`${date}T${startTime}`);
+                const endDateTime = new Date(`${date}T${endTime}`);
+                const duration = (endDateTime - startDateTime) / 60000;
+
+                if (hasScheduleConflict({ professionalId, date: startDateTime, duration })) {
+                    alert("Conflito de agenda! Já existe um agendamento ou bloqueio neste período.");
+                    return;
+                }
+                
+                const data = {
+                    date: Timestamp.fromDate(startDateTime),
+                    professionalId: professionalId,
+                    duration: duration,
+                    reason: document.getElementById('blockReason').value || 'Bloqueado',
+                    type: 'block'
+                };
+                try {
+                    await addDoc(collection(db, 'appointments'), data);
+                    blockTimeForm.reset();
+                    blockTimeModal.classList.add('hidden');
+                } catch(err) { console.error(err); }
             });
 
             confirmModalOk.addEventListener('click', () => {
@@ -1073,7 +1217,7 @@
                 if (appointmentCard) {
                     const appId = appointmentCard.dataset.id;
                     const app = state.appointments.find(a => a.id === appId);
-                    if (app) {
+                    if (app && app.type !== 'block') {
                         openAppointmentModal(app.date.toISOString().split('T')[0], appId);
                     }
                 }
