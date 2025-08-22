@@ -454,10 +454,7 @@
                     el.style.height = `${SLOT_HEIGHT_REM}rem`;
                     el.dataset.date = dateString;
                     el.dataset.time = slotTimeStr;
-                    el.innerHTML = `
-                        <div class="text-xs font-bold text-gray-400 w-12">${slotTimeStr}</div>
-                        <div class="pl-2 text-xs text-gray-400"></div>
-                    `;
+                    el.innerHTML = `<div class="text-xs font-bold text-gray-400 w-12">${slotTimeStr}</div>`;
                     el.onclick = () => {
                         openAppointmentModal(el.dataset.date);
                         document.getElementById('appointmentTime').value = el.dataset.time;
@@ -470,11 +467,16 @@
             const overlapGroups = [];
             dayAppointments.forEach(app => {
                 let placed = false;
+                const service = state.services.find(s => s.id === app.serviceId);
+                const duration = service?.duration || 0;
+                const appEndTime = new Date(app.date.getTime() + duration * 60000);
+
                 for (const group of overlapGroups) {
                     const lastAppInGroup = group[group.length - 1];
-                    const service = state.services.find(s => s.id === lastAppInGroup.serviceId);
-                    const duration = service?.duration || 0;
-                    const lastAppEndTime = new Date(lastAppInGroup.date.getTime() + duration * 60000);
+                    const lastService = state.services.find(s => s.id === lastAppInGroup.serviceId);
+                    const lastDuration = lastService?.duration || 0;
+                    const lastAppEndTime = new Date(lastAppInGroup.date.getTime() + lastDuration * 60000);
+                    
                     if (app.date >= lastAppEndTime) {
                         group.push(app);
                         placed = true;
@@ -485,7 +487,7 @@
                     overlapGroups.push([app]);
                 }
             });
-
+            
             dayAppointments.forEach(app => {
                 const service = state.services.find(s => s.id === app.serviceId);
                 const client = state.clients.find(c => c.id === app.clientId);
@@ -496,26 +498,31 @@
                 const topPosition = (startMinutes / SLOT_DURATION_MINUTES) * SLOT_HEIGHT_REM;
                 const height = (duration / SLOT_DURATION_MINUTES) * SLOT_HEIGHT_REM;
                 
-                let groupIndex = -1;
-                let totalInGroup = 0;
-                for(let i=0; i<overlapGroups.length; i++) {
-                    const foundIndex = overlapGroups[i].findIndex(a => a.id === app.id);
-                    if (foundIndex !== -1) {
-                        groupIndex = i;
-                        totalInGroup = overlapGroups.length;
-                        break;
-                    }
-                }
+                let columnIndex = -1;
+                let numColumns = 1;
 
-                const width = 100 / totalInGroup;
-                const left = groupIndex * width;
+                const appEndTime = new Date(app.date.getTime() + duration * 60000);
+                const overlappingApps = dayAppointments.filter(otherApp => {
+                    const otherService = state.services.find(s => s.id === otherApp.serviceId);
+                    const otherDuration = otherService?.duration || 0;
+                    const otherAppEndTime = new Date(otherApp.date.getTime() + otherDuration * 60000);
+                    return app.date < otherAppEndTime && otherApp.date < appEndTime;
+                });
+
+                numColumns = overlappingApps.length;
+                overlappingApps.sort((a,b) => a.date - b.date);
+                columnIndex = overlappingApps.findIndex(a => a.id === app.id);
+                
+                const width = 100 / numColumns;
+                const left = columnIndex * width;
                 
                 const el = document.createElement('div');
                 el.className = 'absolute flex flex-col p-2 border-l-4 border-pink-500 bg-pink-100 rounded-r-lg overflow-hidden';
                 el.style.top = `${topPosition}rem`;
                 el.style.height = `${height}rem`;
-                el.style.left = `calc(${left}% + 3.5rem)`; // 3.5rem is approx width of time column
-                el.style.width = `calc(${width}% - 3.5rem)`;
+                el.style.left = `calc(${left}% + 3.5rem)`;
+                el.style.width = `calc(${width}% - 0.2rem)`;
+                el.style.marginRight = '0.2rem';
 
                 el.innerHTML = `
                     <p class="font-semibold text-xs text-pink-900 truncate">${client?.name || ''}</p>
@@ -643,6 +650,44 @@
             confirmModal.classList.remove('hidden');
             confirmAction = onConfirm;
         }
+
+        function hasScheduleConflict(appointmentDetails) {
+            const { id: appointmentId, professionalId, date, serviceId } = appointmentDetails;
+            
+            const service = state.services.find(s => s.id === serviceId);
+            if (!service) {
+                console.error("Serviço não encontrado para checar conflito.");
+                return false; // Or handle error appropriately
+            }
+            
+            const newStartTime = date.getTime();
+            const newEndTime = newStartTime + (service.duration * 60000);
+
+            for (const existingApp of state.appointments) {
+                // Ignore if it's not for the same professional
+                if (existingApp.professionalId !== professionalId) {
+                    continue;
+                }
+
+                // If editing, ignore the appointment itself
+                if (appointmentId && existingApp.id === appointmentId) {
+                    continue;
+                }
+
+                const existingService = state.services.find(s => s.id === existingApp.serviceId);
+                const existingDuration = existingService?.duration || 0;
+                const existingStartTime = existingApp.date.getTime();
+                const existingEndTime = existingStartTime + (existingDuration * 60000);
+
+                // Classic overlap check
+                if (newStartTime < existingEndTime && existingStartTime < newEndTime) {
+                    return true; // Conflict found
+                }
+            }
+
+            return false; // No conflicts
+        }
+
 
         function main() {
             const loadingOverlay = document.getElementById('loadingOverlay');
@@ -853,11 +898,19 @@
                 e.preventDefault();
                 const id = appointmentIdToEdit.value;
                 const dateTime = new Date(`${appointmentDate.value}T${appointmentTime.value}`);
+                const professionalId = appointmentProfessional.value;
+                const serviceId = appointmentService.value;
+
+                if (hasScheduleConflict({ id, professionalId, date: dateTime, serviceId })) {
+                    alert("Conflito de agenda! Esta profissional já está ocupada neste horário.");
+                    return;
+                }
+
                 const data = {
                     date: Timestamp.fromDate(dateTime),
                     clientId: appointmentClient.value,
-                    professionalId: appointmentProfessional.value,
-                    serviceId: appointmentService.value,
+                    professionalId: professionalId,
+                    serviceId: serviceId,
                     status: 'agendado'
                 };
                 if (!data.clientId || !data.professionalId || !data.serviceId) { alert('Preencha todos os campos.'); return; }
