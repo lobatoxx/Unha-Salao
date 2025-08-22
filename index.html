@@ -249,6 +249,10 @@
                     <select id="appointmentProfessional" class="w-full px-4 py-2 border rounded-lg" required></select>
                     <select id="appointmentService" class="w-full px-4 py-2 border rounded-lg" required></select>
                 </div>
+                <div id="editAppointmentActions" class="hidden mt-6 flex justify-between items-center gap-3">
+                     <button type="button" id="cancelAppointmentBtn" class="bg-gray-500 text-white px-3 py-2 text-sm rounded-lg font-semibold hover:bg-gray-600">Cancelar Atendimento</button>
+                     <button type="button" id="invoiceAppointmentBtn" class="bg-green-500 text-white px-3 py-2 text-sm rounded-lg font-semibold hover:bg-green-600">Faturar</button>
+                </div>
                 <div class="mt-6 flex justify-between items-center gap-3">
                     <div>
                         <button type="button" id="deleteAppointmentBtn" class="hidden bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600">Excluir</button>
@@ -432,6 +436,14 @@
                     el.className = 'bg-white p-3 rounded-lg shadow-sm border cursor-pointer hover:bg-gray-50';
                     el.dataset.id = app.id;
 
+                    let statusIcon = '';
+                    if (app.status === 'faturado') {
+                        statusIcon = `<i class="fas fa-dollar-sign text-green-500 text-xs ml-2"></i>`;
+                    } else if (app.status === 'cancelado') {
+                        statusIcon = `<i class="fas fa-ban text-red-500 text-xs ml-2"></i>`;
+                        el.classList.add('opacity-50');
+                    }
+
                     if (app.type === 'block') {
                         const startTimeStr = app.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                         const endTime = new Date(app.date.getTime() + app.duration * 60000);
@@ -454,7 +466,10 @@
                         const endTimeStr = endTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                         el.innerHTML = `
                             <div class="pointer-events-none">
-                                <p class="font-bold text-pink-600">${startTimeStr} - ${endTimeStr}</p>
+                                <div class="flex items-center">
+                                    <p class="font-bold text-pink-600">${startTimeStr} - ${endTimeStr}</p>
+                                    ${statusIcon}
+                                </div>
                                 <p class="font-semibold text-gray-800">${client}</p>
                                 <p class="text-sm text-gray-600">${serviceName} com ${prof}</p>
                             </div>`;
@@ -555,10 +570,15 @@
                 const left = columnIndex * width;
                 
                 const el = document.createElement('div');
-                const bgColor = isBlock ? 'bg-gray-200' : 'bg-pink-100';
-                const borderColor = isBlock ? 'border-gray-500' : 'border-pink-500';
-                const hoverBgColor = isBlock ? 'hover:bg-gray-300' : 'hover:bg-pink-200';
-                
+                let bgColor = isBlock ? 'bg-gray-200' : 'bg-pink-100';
+                let borderColor = isBlock ? 'border-gray-500' : 'border-pink-500';
+                let hoverBgColor = isBlock ? 'hover:bg-gray-300' : 'hover:bg-pink-200';
+                if (app.status === 'cancelado') {
+                    bgColor = 'bg-gray-100';
+                    borderColor = 'border-gray-300';
+                    hoverBgColor = 'hover:bg-gray-200';
+                }
+
                 el.className = `absolute flex flex-col p-2 border-l-4 ${borderColor} ${bgColor} ${hoverBgColor} rounded-r-lg overflow-hidden cursor-pointer`;
                 el.style.top = `${topPosition}rem`;
                 el.style.height = `${height}rem`;
@@ -566,6 +586,13 @@
                 el.style.width = `calc(${width}% - 0.2rem)`;
                 el.style.marginRight = '0.2rem';
                 el.dataset.id = app.id;
+
+                let statusIcon = '';
+                 if (app.status === 'faturado') {
+                    statusIcon = `<i class="fas fa-dollar-sign text-green-600 text-xs absolute top-1 right-1"></i>`;
+                } else if (app.status === 'cancelado') {
+                    statusIcon = `<i class="fas fa-ban text-red-600 text-xs absolute top-1 right-1"></i>`;
+                }
 
                 if(isBlock) {
                     el.innerHTML = `
@@ -582,8 +609,10 @@
                         <p class="font-semibold text-xs text-pink-900 truncate pointer-events-none">${client?.name || ''}</p>
                         <p class="text-xs text-pink-700 truncate pointer-events-none">${service?.name || ''}</p>
                         <p class="text-xs text-pink-600 truncate pointer-events-none">${professional?.name || ''}</p>
+                        ${statusIcon}
                     `;
                 }
+                
                 dailyViewTimeSlots.appendChild(el);
             });
         }
@@ -592,18 +621,21 @@
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const todayStr = today.toISOString().split('T')[0];
-            const agendamentosDeHoje = state.appointments.filter(app => app.type !== 'block' && app.date && app.date.toISOString().split('T')[0] === todayStr);
+            const agendamentosDeHoje = state.appointments.filter(app => app.type === 'booking' && app.status !== 'cancelado' && app.date && app.date.toISOString().split('T')[0] === todayStr);
+            const faturadoHoje = state.appointments.filter(app => app.status === 'faturado' && app.date && app.date.toISOString().split('T')[0] === todayStr);
+
             agendamentosHojeEl.textContent = agendamentosDeHoje.length;
-            const faturamentoDeHoje = agendamentosDeHoje.reduce((total, app) => {
+            const faturamentoDeHoje = faturadoHoje.reduce((total, app) => {
                 const service = state.services.find(s => s.id === app.serviceId);
                 return total + (service?.price || 0);
             }, 0);
+
             faturamentoHojeEl.textContent = `R$ ${faturamentoDeHoje.toFixed(2).replace('.', ',')}`;
             if (state.role === 'admin') {
                 totalClientesEl.textContent = state.clients.length;
                 totalServicosEl.textContent = state.services.length;
             }
-            const proximos = state.appointments.filter(app => app.type !== 'block' && app.date && app.date >= today).sort((a, b) => a.date - b.date).slice(0, 3);
+            const proximos = state.appointments.filter(app => app.type === 'booking' && app.status === 'agendado' && app.date && app.date >= today).sort((a, b) => a.date - b.date).slice(0, 3);
             proximosAgendamentosEl.innerHTML = '';
             if (proximos.length === 0) {
                 proximosAgendamentosEl.innerHTML = `<p class="text-center text-gray-500 text-sm">Nenhum agendamento próximo.</p>`;
@@ -627,9 +659,11 @@
             const year = date.getFullYear();
             const month = date.getMonth();
             financeiroCurrentMonthYear.textContent = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+            
             const appointmentsInMonth = state.appointments.filter(app => {
-                return app.type !== 'block' && app.date && app.date.getFullYear() === year && app.date.getMonth() === month;
+                return app.status === 'faturado' && app.date && app.date.getFullYear() === year && app.date.getMonth() === month;
             });
+
             if (state.role === 'admin') {
                 let totalMonthRevenue = 0;
                 detalhesFinanceiroEl.innerHTML = '';
@@ -793,6 +827,9 @@
             const appointmentModalTitle = document.getElementById('appointmentModalTitle');
             const appointmentIdToEdit = document.getElementById('appointmentIdToEdit');
             const deleteAppointmentBtn = document.getElementById('deleteAppointmentBtn');
+            const editAppointmentActions = document.getElementById('editAppointmentActions');
+            const invoiceAppointmentBtn = document.getElementById('invoiceAppointmentBtn');
+            const cancelAppointmentBtn = document.getElementById('cancelAppointmentBtn');
             const openBlockTimeModalBtn = document.getElementById('openBlockTimeModalBtn');
             const closeBlockTimeModalBtn = document.getElementById('closeBlockTimeModalBtn');
             const blockTimeModal = document.getElementById('blockTimeModal');
@@ -938,6 +975,8 @@
                 addAppointmentForm.reset();
                 appointmentDate.value = date;
                 deleteAppointmentBtn.classList.add('hidden');
+                editAppointmentActions.classList.add('hidden');
+                
                 const clientSelect = document.getElementById('appointmentClient');
                 clientSelect.innerHTML = '<option value="">Selecione um cliente</option>';
                 state.clients.forEach(c => clientSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`);
@@ -947,6 +986,7 @@
                 const serviceSelect = document.getElementById('appointmentService');
                 serviceSelect.innerHTML = '<option value="">Selecione um serviço</option>';
                 state.services.forEach(s => serviceSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`);
+                
                 if (appointmentId) {
                     const app = state.appointments.find(a => a.id === appointmentId);
                     appointmentModalTitle.textContent = 'Editar Agendamento';
@@ -956,6 +996,10 @@
                     profSelect.value = app.professionalId;
                     serviceSelect.value = app.serviceId;
                     deleteAppointmentBtn.classList.remove('hidden');
+
+                    if (app.status === 'agendado') {
+                        editAppointmentActions.classList.remove('hidden');
+                    }
                 } else {
                     appointmentModalTitle.textContent = 'Novo Agendamento';
                     appointmentIdToEdit.value = '';
@@ -999,6 +1043,17 @@
                         .catch(err => console.error(err));
                 });
             });
+
+            const updateAppointmentStatus = async (status) => {
+                const id = appointmentIdToEdit.value;
+                if (!id) return;
+                try {
+                    await updateDoc(doc(db, 'appointments', id), { status });
+                    addAppointmentModal.classList.add('hidden');
+                } catch(err) { console.error(err); }
+            };
+            invoiceAppointmentBtn.addEventListener('click', () => updateAppointmentStatus('faturado'));
+            cancelAppointmentBtn.addEventListener('click', () => updateAppointmentStatus('cancelado'));
 
             function openBlockTimeModal(blockId = null) {
                 blockTimeForm.reset();
@@ -1283,7 +1338,7 @@
                         if (app.type === 'block') {
                             openBlockTimeModal(app.id);
                         } else {
-                            openAppointmentModal(app.date.toISOString().split('T')[0], appId);
+                            openAppointmentModal(app.date.toISOString().split('T')[0], app.id);
                         }
                     }
                 }
