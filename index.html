@@ -63,11 +63,11 @@
                         <p class="text-sm text-purple-800 font-medium">Agendamentos para Hoje</p>
                         <p id="agendamentosHoje" class="text-2xl font-bold text-purple-900">0</p>
                     </div>
-                    <div class="bg-blue-100 p-4 rounded-lg shadow">
+                    <div id="totalClientesCard" class="bg-blue-100 p-4 rounded-lg shadow">
                         <p class="text-sm text-blue-800 font-medium">Total de Clientes</p>
                         <p id="totalClientes" class="text-2xl font-bold text-blue-900">0</p>
                     </div>
-                     <div class="bg-green-100 p-4 rounded-lg shadow">
+                     <div id="totalServicosCard" class="bg-green-100 p-4 rounded-lg shadow">
                         <p class="text-sm text-green-800 font-medium">Total de Serviços</p>
                         <p id="totalServicos" class="text-2xl font-bold text-green-900">0</p>
                     </div>
@@ -128,11 +128,15 @@
                     <h2 id="financeiroCurrentMonthYear" class="text-lg font-bold text-gray-800"></h2>
                     <button id="financeiroNextMonthBtn" class="p-2 rounded-full hover:bg-gray-100"><i class="fas fa-chevron-right"></i></button>
                 </div>
-                <div class="bg-gray-100 p-4 rounded-lg shadow mb-6 text-center">
+                <div id="adminFinancialSummary" class="bg-gray-100 p-4 rounded-lg shadow mb-6 text-center">
                     <p class="text-sm text-gray-600 font-medium">Faturamento Total do Mês</p>
                     <p id="faturamentoTotalMes" class="text-3xl font-bold text-gray-800">R$ 0,00</p>
                 </div>
-                <div>
+                 <div id="professionalFinancialSummary" class="hidden bg-gray-100 p-4 rounded-lg shadow mb-6 text-center">
+                    <p class="text-sm text-gray-600 font-medium">Seus Ganhos no Mês (Comissão)</p>
+                    <p id="ganhosProfissionalMes" class="text-3xl font-bold text-green-600">R$ 0,00</p>
+                </div>
+                <div id="adminFinancialDetails">
                     <h3 class="font-bold text-gray-700 mb-2">Detalhes por Profissional</h3>
                     <div id="detalhesFinanceiro" class="space-y-3"></div>
                 </div>
@@ -151,7 +155,6 @@
         </footer>
     </div>
     
-    <!-- MODAIS -->
     <div id="addServiceModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-40">
         <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
             <div class="flex justify-between items-center mb-4">
@@ -249,7 +252,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, query, addDoc, doc, deleteDoc, updateDoc, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, query, addDoc, doc, deleteDoc, updateDoc, Timestamp, getDocs, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         
         const firebaseConfig = {
@@ -268,13 +271,17 @@
 
         let state = { 
             user: null, 
+            role: 'admin', // Default role
+            professionalProfile: null,
             appointments: [], professionals: [], clients: [], services: [], 
-            collections: {},
             currentDate: new Date(),
             selectedDate: null
         };
+
+        // Unsubscribe functions to prevent memory leaks
+        let unsubscribes = [];
         
-        function renderServices(servicesList, serviceModalTitle, serviceIdToEdit, addServiceModal) {
+        function renderServices(servicesList) {
             if (!servicesList) return;
             servicesList.innerHTML = '';
             if (state.services.length === 0) {
@@ -286,7 +293,7 @@
                 el.className = 'bg-white p-4 rounded-lg shadow-sm border flex justify-between items-center';
                 const price = typeof service.price === 'number' ? service.price.toFixed(2) : '0.00';
                 el.innerHTML = `
-                    <div><p class="font-semibold text-gray-800">${service.name || ''}</p><p class="text-sm text-gray-500">R$ ${price} - ${service.duration || 0} min</p></div>
+                    <div><p class="font-semibold text-gray-800">${service.name || ''}</p><p class="text-sm text-gray-500">R$ ${price.replace('.',',')} - ${service.duration || 0} min</p></div>
                     <div><button class="edit-service-btn text-blue-500 hover:text-blue-700 mr-2" data-id="${service.id}"><i class="fas fa-pencil-alt"></i></button><button class="delete-service-btn text-red-500 hover:text-red-700" data-id="${service.id}"><i class="fas fa-trash"></i></button></div>`;
                 servicesList.appendChild(el);
             });
@@ -413,15 +420,22 @@
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const todayStr = today.toISOString().split('T')[0];
+
+            // Appointments for today are already filtered based on role
             const agendamentosDeHoje = state.appointments.filter(app => app.date && app.date.toISOString().split('T')[0] === todayStr);
             agendamentosHojeEl.textContent = agendamentosDeHoje.length;
+
             const faturamentoDeHoje = agendamentosDeHoje.reduce((total, app) => {
                 const service = state.services.find(s => s.id === app.serviceId);
                 return total + (service?.price || 0);
             }, 0);
             faturamentoHojeEl.textContent = `R$ ${faturamentoDeHoje.toFixed(2).replace('.', ',')}`;
-            totalClientesEl.textContent = state.clients.length;
-            totalServicosEl.textContent = state.services.length;
+
+            if (state.role === 'admin') {
+                totalClientesEl.textContent = state.clients.length;
+                totalServicosEl.textContent = state.services.length;
+            }
+            
             const proximos = state.appointments.filter(app => app.date && app.date >= today).sort((a, b) => a.date - b.date).slice(0, 3);
             proximosAgendamentosEl.innerHTML = '';
             if (proximos.length === 0) {
@@ -441,49 +455,91 @@
             }
         }
 
-        function renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl) {
+        function renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl, ganhosProfissionalMesEl) {
             const date = state.currentDate;
             const year = date.getFullYear();
             const month = date.getMonth();
 
             financeiroCurrentMonthYear.textContent = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-
+            
+            // Appointments in month are already filtered by role
             const appointmentsInMonth = state.appointments.filter(app => {
                 return app.date && app.date.getFullYear() === year && app.date.getMonth() === month;
             });
 
-            let totalMonthRevenue = 0;
-            detalhesFinanceiroEl.innerHTML = '';
-
-            if (state.professionals.length === 0) {
-                detalhesFinanceiroEl.innerHTML = `<p class="text-center text-gray-500 text-sm">Nenhum profissional cadastrado.</p>`;
-            }
-
-            state.professionals.forEach(prof => {
-                const profAppointments = appointmentsInMonth.filter(app => app.professionalId === prof.id);
-                
-                const profRevenue = profAppointments.reduce((total, app) => {
+            if (state.role === 'admin') {
+                let totalMonthRevenue = 0;
+                detalhesFinanceiroEl.innerHTML = '';
+                if (state.professionals.length === 0) {
+                    detalhesFinanceiroEl.innerHTML = `<p class="text-center text-gray-500 text-sm">Nenhum profissional cadastrado.</p>`;
+                }
+                state.professionals.forEach(prof => {
+                    const profAppointments = appointmentsInMonth.filter(app => app.professionalId === prof.id);
+                    const profRevenue = profAppointments.reduce((total, app) => {
+                        const service = state.services.find(s => s.id === app.serviceId);
+                        return total + (service?.price || 0);
+                    }, 0);
+                    totalMonthRevenue += profRevenue;
+                    const commissionValue = profRevenue * (prof.commission / 100);
+                    const el = document.createElement('div');
+                    el.className = 'bg-white p-4 rounded-lg shadow-sm border';
+                    el.innerHTML = `
+                        <p class="font-bold text-gray-800">${prof.name}</p>
+                        <div class="mt-2 text-sm space-y-1">
+                            <div class="flex justify-between"><span>Faturamento:</span> <span class="font-semibold">R$ ${profRevenue.toFixed(2).replace('.', ',')}</span></div>
+                            <div class="flex justify-between text-red-600"><span>Comissão (${prof.commission}%):</span> <span class="font-semibold">- R$ ${commissionValue.toFixed(2).replace('.', ',')}</span></div>
+                            <div class="flex justify-between border-t pt-1 mt-1"><span>Líquido:</span> <span class="font-bold text-green-600">R$ ${(profRevenue - commissionValue).toFixed(2).replace('.', ',')}</span></div>
+                        </div>`;
+                    detalhesFinanceiroEl.appendChild(el);
+                });
+                faturamentoTotalMesEl.textContent = `R$ ${totalMonthRevenue.toFixed(2).replace('.', ',')}`;
+            } else if (state.role === 'professional') {
+                const profRevenue = appointmentsInMonth.reduce((total, app) => {
                     const service = state.services.find(s => s.id === app.serviceId);
                     return total + (service?.price || 0);
                 }, 0);
+                const commissionValue = profRevenue * (state.professionalProfile.commission / 100);
+                ganhosProfissionalMesEl.textContent = `R$ ${commissionValue.toFixed(2).replace('.', ',')}`;
+            }
+        }
 
-                totalMonthRevenue += profRevenue;
-                const commissionValue = profRevenue * (prof.commission / 100);
+        function updateUIVisibility() {
+            const role = state.role;
+            // Get all elements that change
+            const clientesBtn = document.querySelector('button[data-page="clientesPage"]');
+            const equipeBtn = document.querySelector('button[data-page="equipePage"]');
+            const servicosBtn = document.querySelector('button[data-page="servicosPage"]');
+            const totalClientesCard = document.getElementById('totalClientesCard');
+            const totalServicosCard = document.getElementById('totalServicosCard');
+            const adminFinancialSummary = document.getElementById('adminFinancialSummary');
+            const adminFinancialDetails = document.getElementById('adminFinancialDetails');
+            const professionalFinancialSummary = document.getElementById('professionalFinancialSummary');
 
-                const el = document.createElement('div');
-                el.className = 'bg-white p-4 rounded-lg shadow-sm border';
-                el.innerHTML = `
-                    <p class="font-bold text-gray-800">${prof.name}</p>
-                    <div class="mt-2 text-sm space-y-1">
-                        <div class="flex justify-between"><span>Faturamento:</span> <span class="font-semibold">R$ ${profRevenue.toFixed(2).replace('.', ',')}</span></div>
-                        <div class="flex justify-between text-red-600"><span>Comissão (${prof.commission}%):</span> <span class="font-semibold">- R$ ${commissionValue.toFixed(2).replace('.', ',')}</span></div>
-                        <div class="flex justify-between border-t pt-1 mt-1"><span>Líquido:</span> <span class="font-bold text-green-600">R$ ${(profRevenue - commissionValue).toFixed(2).replace('.', ',')}</span></div>
-                    </div>
-                `;
-                detalhesFinanceiroEl.appendChild(el);
-            });
-
-            faturamentoTotalMesEl.textContent = `R$ ${totalMonthRevenue.toFixed(2).replace('.', ',')}`;
+            if (role === 'professional') {
+                // Hide nav buttons
+                clientesBtn.style.display = 'none';
+                equipeBtn.style.display = 'none';
+                servicosBtn.style.display = 'none';
+                // Hide dashboard cards
+                totalClientesCard.style.display = 'none';
+                totalServicosCard.style.display = 'none';
+                // Adapt financial page
+                adminFinancialSummary.style.display = 'none';
+                adminFinancialDetails.style.display = 'none';
+                professionalFinancialSummary.classList.remove('hidden');
+            } else { // Admin
+                // Show nav buttons
+                clientesBtn.style.display = 'block';
+                equipeBtn.style.display = 'block';
+                servicosBtn.style.display = 'block';
+                // Show dashboard cards
+                totalClientesCard.style.display = 'block';
+                totalServicosCard.style.display = 'block';
+                // Adapt financial page
+                adminFinancialSummary.style.display = 'block';
+                adminFinancialDetails.style.display = 'block';
+                professionalFinancialSummary.classList.add('hidden');
+            }
         }
 
         let confirmAction = () => {};
@@ -550,6 +606,7 @@
             const financeiroCurrentMonthYear = document.getElementById('financeiroCurrentMonthYear');
             const faturamentoTotalMesEl = document.getElementById('faturamentoTotalMes');
             const detalhesFinanceiroEl = document.getElementById('detalhesFinanceiro');
+            const ganhosProfissionalMesEl = document.getElementById('ganhosProfissionalMes');
 
             registerButton.addEventListener('click', async () => {
                 const email = emailInput.value;
@@ -567,10 +624,15 @@
             });
             logoutButton.addEventListener('click', () => signOut(auth));
 
-            prevMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() - 1); renderCalendar(calendarDays, currentMonthYear, appointmentsForDay, appointmentsTitle, openAppointmentModal); renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl); });
-            nextMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() + 1); renderCalendar(calendarDays, currentMonthYear, appointmentsForDay, appointmentsTitle, openAppointmentModal); renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl); });
-            financeiroPrevMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() - 1); renderCalendar(calendarDays, currentMonthYear, appointmentsForDay, appointmentsTitle, openAppointmentModal); renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl); });
-            financeiroNextMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() + 1); renderCalendar(calendarDays, currentMonthYear, appointmentsForDay, appointmentsTitle, openAppointmentModal); renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl); });
+            const refreshCalendarsAndFinance = () => {
+                renderCalendar(calendarDays, currentMonthYear, appointmentsForDay, appointmentsTitle, openAppointmentModal);
+                renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl, ganhosProfissionalMesEl);
+            };
+
+            prevMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() - 1); refreshCalendarsAndFinance(); });
+            nextMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() + 1); refreshCalendarsAndFinance(); });
+            financeiroPrevMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() - 1); refreshCalendarsAndFinance(); });
+            financeiroNextMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() + 1); refreshCalendarsAndFinance(); });
 
             openServiceModalBtn.addEventListener('click', () => {
                 serviceModalTitle.textContent = 'Adicionar Serviço';
@@ -680,14 +742,10 @@
             });
 
             confirmModalOk.addEventListener('click', () => {
-                if (typeof confirmAction === 'function') {
-                    confirmAction();
-                }
+                if (typeof confirmAction === 'function') { confirmAction(); }
                 confirmModal.classList.add('hidden');
             });
-            confirmModalCancel.addEventListener('click', () => {
-                confirmModal.classList.add('hidden');
-            });
+            confirmModalCancel.addEventListener('click', () => confirmModal.classList.add('hidden'));
 
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
@@ -700,34 +758,93 @@
                     e.currentTarget.classList.add('text-pink-500'); e.currentTarget.classList.remove('text-gray-400'); e.currentTarget.querySelector('p').classList.add('font-bold');
                 });
             });
-            onAuthStateChanged(auth, user => {
-                if (user) {
-                    state.user = user;
-                    const paths = { appointments: "appointments", professionals: "professionals", clients: "clients", services: "services" };
-                    Object.keys(paths).forEach(key => {
-                        const collectionPath = paths[key];
-                        state.collections[key] = collection(db, collectionPath);
-                        onSnapshot(query(state.collections[key]), (snapshot) => {
-                            state[key] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), date: doc.data().date?.toDate() }));
-                            renderServices(servicesList, serviceModalTitle, serviceIdToEdit, addServiceModal);
-                            renderProfessionals(professionalsList);
-                            renderClients(clientsList);
+
+            function setupDataListeners() {
+                // Clear previous listeners to avoid duplicates
+                unsubscribes.forEach(unsub => unsub());
+                unsubscribes = [];
+
+                const collectionsToRender = ['services', 'professionals', 'clients', 'appointments'];
+                
+                const renderAll = () => collectionsToRender.forEach(key => {
+                    switch(key) {
+                        case 'services': renderServices(servicesList); break;
+                        case 'professionals': renderProfessionals(professionalsList); break;
+                        case 'clients': renderClients(clientsList); break;
+                        case 'appointments':
                             renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, null, openAppointmentModal);
                             renderDashboard(agendamentosHojeEl, faturamentoHojeEl, totalClientesEl, totalServicosEl, proximosAgendamentosEl);
-                            renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl);
+                            renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl, ganhosProfissionalMesEl);
+                            break;
+                    }
+                });
+
+                if (state.role === 'admin') {
+                    // Admin gets everything
+                    const paths = { appointments: "appointments", professionals: "professionals", clients: "clients", services: "services" };
+                    Object.keys(paths).forEach(key => {
+                        const q = query(collection(db, paths[key]));
+                        const unsub = onSnapshot(q, (snapshot) => {
+                            state[key] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), date: doc.data().date?.toDate() }));
+                            renderAll();
                         });
+                        unsubscribes.push(unsub);
                     });
+                } else if (state.role === 'professional') {
+                    // Professional gets their appointments, and static lists of the rest for context
+                    const staticCollections = ['clients', 'services', 'professionals'];
+                    staticCollections.forEach(key => {
+                        const q = query(collection(db, key));
+                        const unsub = onSnapshot(q, (snapshot) => {
+                            state[key] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), date: doc.data().date?.toDate() }));
+                            renderAll();
+                        });
+                        unsubscribes.push(unsub);
+                    });
+
+                    // Live listener only for their appointments
+                    const appointmentsQuery = query(collection(db, 'appointments'), where("professionalId", "==", state.professionalProfile.id));
+                    const unsubAppointments = onSnapshot(appointmentsQuery, (snapshot) => {
+                        state.appointments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), date: doc.data().date?.toDate() }));
+                        renderAll();
+                    });
+                    unsubscribes.push(unsubAppointments);
+                }
+            }
+
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    state.user = user;
+                    const professionalsRef = collection(db, 'professionals');
+                    const q = query(professionalsRef, where("userId", "==", user.uid));
+                    const professionalSnapshot = await getDocs(q);
+                    
+                    if (!professionalSnapshot.empty) {
+                        const professionalDoc = professionalSnapshot.docs[0];
+                        state.professionalProfile = { id: professionalDoc.id, ...professionalDoc.data() };
+                        state.role = 'professional';
+                    } else {
+                        state.professionalProfile = null;
+                        state.role = 'admin';
+                    }
+                    
+                    updateUIVisibility();
+                    setupDataListeners();
+                    
                     renderCalendar(calendarDays, currentMonthYear, appointmentsForDay, appointmentsTitle, openAppointmentModal);
                     appContainer.classList.remove('hidden'); 
                     loginPage.classList.add('hidden');
                 } else {
-                    state.user = null; Object.keys(state.collections).forEach(key => { state[key] = [] });
+                    unsubscribes.forEach(unsub => unsub());
+                    unsubscribes = [];
+                    state = { ...state, user: null, role: 'admin', professionalProfile: null, appointments: [], professionals: [], clients: [], services: [] };
                     appContainer.classList.add('hidden'); loginPage.classList.remove('hidden');
                 }
                 setTimeout(() => loadingOverlay.classList.add('hidden'), 500);
             });
 
             servicesList.addEventListener('click', (e) => {
+                if (state.role !== 'admin') return;
                 const editBtn = e.target.closest('.edit-service-btn');
                 const deleteBtn = e.target.closest('.delete-service-btn');
                 if (editBtn) {
@@ -751,6 +868,7 @@
             });
 
             clientsList.addEventListener('click', (e) => {
+                if (state.role !== 'admin') return;
                 const editBtn = e.target.closest('.edit-client-btn');
                 const deleteBtn = e.target.closest('.delete-client-btn');
                 if (editBtn) {
@@ -773,6 +891,7 @@
             });
 
             professionalsList.addEventListener('click', (e) => {
+                if (state.role !== 'admin') return;
                 const editBtn = e.target.closest('.edit-professional-btn');
                 const deleteBtn = e.target.closest('.delete-professional-btn');
                 if (editBtn) {
