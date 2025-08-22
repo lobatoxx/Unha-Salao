@@ -172,6 +172,16 @@
         </footer>
     </div>
     
+    <div id="whatsappMessageModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold">Enviar Mensagem Pronta</h3>
+                <button id="closeWhatsappMessageModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <div id="whatsappMessagesList" class="space-y-2 max-h-64 overflow-y-auto">
+                </div>
+        </div>
+    </div>
     <div id="addServiceModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-40">
         <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
             <div class="flex justify-between items-center mb-4">
@@ -352,8 +362,16 @@
             appointments: [], professionals: [], clients: [], services: [], 
             currentDate: new Date(),
             selectedDate: new Date().toISOString().split('T')[0],
-            tempSlot: { date: null, time: null }
+            tempSlot: { date: null, time: null },
+            tempClient: { id: null, name: null, phone: null }
         };
+        
+        const whatsappMessages = [
+            "Olá {cliente}! Tudo bem? Estou passando para confirmar seu agendamento conosco. Podemos contar com sua presença?",
+            "Oi {cliente}! Lembrete do seu horário amanhã. Qualquer imprevisto, por favor, nos avise com antecedência.",
+            "Olá {cliente}, tudo joia? Vi que faz um tempo que não nos visita. Que tal agendar um horário e renovar a beleza? 😊",
+            "Olá {cliente}! Agradecemos a sua visita e preferência. Esperamos te ver em breve! Atenciosamente, {profissional}.",
+        ];
 
         let unsubscribes = [];
         
@@ -410,7 +428,7 @@
                 el.innerHTML = `
                     <div><p class="font-semibold text-gray-800">${client.name}</p><p class="text-sm text-gray-500">${client.phone}</p></div>
                     <div class="flex items-center gap-2">
-                        <a href="https://wa.me/55${(client.phone || '').replace(/\D/g,'')}" target="_blank" class="text-green-500"><i class="fab fa-whatsapp"></i></a>
+                        <button class="whatsapp-btn text-green-500" data-id="${client.id}"><i class="fab fa-whatsapp"></i></button>
                         ${adminButtons}
                     </div>`;
                 clientsList.appendChild(el);
@@ -577,6 +595,7 @@
                     bgColor = 'bg-gray-100';
                     borderColor = 'border-gray-300';
                     hoverBgColor = 'hover:bg-gray-200';
+                    el.classList.add('opacity-70');
                 }
 
                 el.className = `absolute flex flex-col p-2 border-l-4 ${borderColor} ${bgColor} ${hoverBgColor} rounded-r-lg overflow-hidden cursor-pointer`;
@@ -854,6 +873,9 @@
             const faturamentoTotalMesEl = document.getElementById('faturamentoTotalMes');
             const detalhesFinanceiroEl = document.getElementById('detalhesFinanceiro');
             const ganhosProfissionalMesEl = document.getElementById('ganhosProfissionalMes');
+            const whatsappMessageModal = document.getElementById('whatsappMessageModal');
+            const whatsappMessagesList = document.getElementById('whatsappMessagesList');
+            const closeWhatsappMessageModalBtn = document.getElementById('closeWhatsappMessageModalBtn');
 
             registerButton.addEventListener('click', async () => {
                 const email = emailInput.value;
@@ -1160,6 +1182,45 @@
                 actionChoiceModal.classList.add('hidden');
             });
 
+            function openWhatsAppMessageModal(clientId) {
+                const client = state.clients.find(c => c.id === clientId);
+                if (!client) return;
+
+                state.tempClient = client;
+                whatsappMessagesList.innerHTML = '';
+
+                const professionalName = state.role === 'professional' ? state.professionalProfile.name : "Nós do Salão";
+
+                whatsappMessages.forEach(msg => {
+                    const finalMsg = msg
+                        .replace('{cliente}', client.name.split(' ')[0])
+                        .replace('{profissional}', professionalName);
+                    
+                    const el = document.createElement('button');
+                    el.className = 'w-full text-left p-3 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm';
+                    el.textContent = finalMsg;
+                    el.dataset.message = finalMsg;
+                    whatsappMessagesList.appendChild(el);
+                });
+
+                whatsappMessageModal.classList.remove('hidden');
+            }
+
+            closeWhatsappMessageModalBtn.addEventListener('click', () => whatsappMessageModal.classList.add('hidden'));
+
+            whatsappMessagesList.addEventListener('click', (e) => {
+                const messageBtn = e.target.closest('button');
+                if (!messageBtn || !messageBtn.dataset.message) return;
+
+                const message = messageBtn.dataset.message;
+                const phone = state.tempClient.phone.replace(/\D/g, '');
+                const encodedMessage = encodeURIComponent(message);
+                const url = `https://wa.me/55${phone}?text=${encodedMessage}`;
+                
+                window.open(url, '_blank');
+                whatsappMessageModal.classList.add('hidden');
+            });
+
             confirmModalOk.addEventListener('click', () => {
                 if (typeof confirmAction === 'function') { confirmAction(); }
                 confirmModal.classList.add('hidden');
@@ -1279,6 +1340,11 @@
             });
 
             clientsList.addEventListener('click', (e) => {
+                const whatsAppBtn = e.target.closest('.whatsapp-btn');
+                if (whatsAppBtn) {
+                    openWhatsAppMessageModal(whatsAppBtn.dataset.id);
+                    return;
+                }
                 if (state.role !== 'admin') return;
                 const editBtn = e.target.closest('.edit-client-btn');
                 const deleteBtn = e.target.closest('.delete-client-btn');
