@@ -322,12 +322,20 @@
             state.clients.forEach(client => {
                 const el = document.createElement('div');
                 el.className = 'bg-white p-4 rounded-lg shadow-sm border flex justify-between items-center';
+                
+                let adminButtons = '';
+                if (state.role === 'admin') {
+                    adminButtons = `
+                        <button class="edit-client-btn text-blue-500 hover:text-blue-700" data-id="${client.id}"><i class="fas fa-pencil-alt"></i></button>
+                        <button class="delete-client-btn text-red-500 hover:text-red-700" data-id="${client.id}"><i class="fas fa-trash"></i></button>
+                    `;
+                }
+
                 el.innerHTML = `
                     <div><p class="font-semibold text-gray-800">${client.name}</p><p class="text-sm text-gray-500">${client.phone}</p></div>
                     <div class="flex items-center gap-2">
                         <a href="https://wa.me/55${(client.phone || '').replace(/\D/g,'')}" target="_blank" class="text-green-500"><i class="fab fa-whatsapp"></i></a>
-                        <button class="edit-client-btn text-blue-500 hover:text-blue-700" data-id="${client.id}"><i class="fas fa-pencil-alt"></i></button>
-                        <button class="delete-client-btn text-red-500 hover:text-red-700" data-id="${client.id}"><i class="fas fa-trash"></i></button>
+                        ${adminButtons}
                     </div>`;
                 clientsList.appendChild(el);
             });
@@ -506,9 +514,9 @@
         function updateUIVisibility() {
             const role = state.role;
             // Get all elements that change
-            const clientesBtn = document.querySelector('button[data-page="clientesPage"]');
             const equipeBtn = document.querySelector('button[data-page="equipePage"]');
             const servicosBtn = document.querySelector('button[data-page="servicosPage"]');
+            const openClientModalBtn = document.getElementById('openClientModalBtn');
             const totalClientesCard = document.getElementById('totalClientesCard');
             const totalServicosCard = document.getElementById('totalServicosCard');
             const adminFinancialSummary = document.getElementById('adminFinancialSummary');
@@ -517,9 +525,10 @@
 
             if (role === 'professional') {
                 // Hide nav buttons
-                clientesBtn.style.display = 'none';
                 equipeBtn.style.display = 'none';
                 servicosBtn.style.display = 'none';
+                // Hide action buttons
+                openClientModalBtn.style.display = 'none';
                 // Hide dashboard cards
                 totalClientesCard.style.display = 'none';
                 totalServicosCard.style.display = 'none';
@@ -529,9 +538,10 @@
                 professionalFinancialSummary.classList.remove('hidden');
             } else { // Admin
                 // Show nav buttons
-                clientesBtn.style.display = 'block';
                 equipeBtn.style.display = 'block';
                 servicosBtn.style.display = 'block';
+                // Show action buttons
+                openClientModalBtn.style.display = 'block';
                 // Show dashboard cards
                 totalClientesCard.style.display = 'block';
                 totalServicosCard.style.display = 'block';
@@ -544,6 +554,8 @@
 
         let confirmAction = () => {};
         function showConfirmModal(message, onConfirm) {
+            const confirmModalText = document.getElementById('confirmModalText');
+            const confirmModal = document.getElementById('confirmModal');
             confirmModalText.textContent = message;
             confirmModal.classList.remove('hidden');
             confirmAction = onConfirm;
@@ -575,7 +587,6 @@
             const professionalModalTitle = document.getElementById('professionalModalTitle');
             const professionalIdToEdit = document.getElementById('professionalIdToEdit');
             const clientsList = document.getElementById('clientsList');
-            const openClientModalBtn = document.getElementById('openClientModalBtn');
             const closeClientModalBtn = document.getElementById('closeClientModalBtn');
             const addClientModal = document.getElementById('addClientModal');
             const addClientForm = document.getElementById('addClientForm');
@@ -593,7 +604,6 @@
             const appointmentModalTitle = document.getElementById('appointmentModalTitle');
             const appointmentIdToEdit = document.getElementById('appointmentIdToEdit');
             const confirmModal = document.getElementById('confirmModal');
-            const confirmModalText = document.getElementById('confirmModalText');
             const confirmModalOk = document.getElementById('confirmModalOk');
             const confirmModalCancel = document.getElementById('confirmModalCancel');
             const faturamentoHojeEl = document.getElementById('faturamentoHoje');
@@ -676,7 +686,7 @@
                 } catch (err) { console.error(err); }
             });
             
-            openClientModalBtn.addEventListener('click', () => {
+            document.getElementById('openClientModalBtn').addEventListener('click', () => {
                 clientModalTitle.textContent = 'Adicionar Cliente';
                 addClientForm.reset();
                 clientIdToEdit.value = '';
