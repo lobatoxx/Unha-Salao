@@ -295,6 +295,16 @@
             </form>
         </div>
     </div>
+    <div id="actionChoiceModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
+            <h3 class="text-lg font-bold text-center mb-4">O que deseja fazer?</h3>
+            <div class="flex flex-col gap-3">
+                <button id="newAppointmentChoiceBtn" class="w-full bg-pink-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-pink-600">Novo Agendamento</button>
+                <button id="blockTimeChoiceBtn" class="w-full bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-700">Bloquear Horário</button>
+                <button id="cancelActionChoiceBtn" class="w-full bg-gray-200 text-gray-700 px-4 py-2 mt-2 rounded-lg font-semibold hover:bg-gray-300">Cancelar</button>
+            </div>
+        </div>
+    </div>
     <div id="confirmModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6 text-center">
             <p id="confirmModalText" class="mb-4">Tem certeza?</p>
@@ -331,7 +341,8 @@
             professionalProfile: null,
             appointments: [], professionals: [], clients: [], services: [], 
             currentDate: new Date(),
-            selectedDate: new Date().toISOString().split('T')[0]
+            selectedDate: new Date().toISOString().split('T')[0],
+            tempSlot: { date: null, time: null }
         };
 
         let unsubscribes = [];
@@ -478,7 +489,7 @@
             }
         }
 
-        function renderDailyView(dailyViewTimeSlots, dailyViewTitle, dateString, openAppointmentModal) {
+        function renderDailyView(dailyViewTimeSlots, dailyViewTitle, dateString, openActionChoiceModal) {
             const date = new Date(dateString + 'T00:00:00');
             dailyViewTitle.textContent = `Agenda para ${date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}`;
             dailyViewTimeSlots.innerHTML = '';
@@ -505,10 +516,7 @@
                     el.dataset.date = dateString;
                     el.dataset.time = slotTimeStr;
                     el.innerHTML = `<div class="text-xs font-bold text-gray-400 w-12">${slotTimeStr}</div>`;
-                    el.onclick = () => {
-                        openAppointmentModal(el.dataset.date);
-                        document.getElementById('appointmentTime').value = el.dataset.time;
-                    };
+                    el.onclick = () => openActionChoiceModal(el.dataset.date, el.dataset.time);
                     backgroundSlots.appendChild(el);
                 }
             }
@@ -704,11 +712,11 @@
             const { id: appointmentId, professionalId, date, serviceId, duration: blockDuration } = conflictDetails;
             
             let duration = 0;
-            if (serviceId) { // It's a booking
+            if (serviceId) {
                 const service = state.services.find(s => s.id === serviceId);
                 if (!service) return false;
                 duration = service.duration;
-            } else { // It's a block
+            } else {
                 duration = blockDuration;
             }
             
@@ -737,7 +745,6 @@
             }
             return false;
         }
-
 
         function main() {
             const loadingOverlay = document.getElementById('loadingOverlay');
@@ -792,6 +799,10 @@
             const closeBlockTimeModalBtn = document.getElementById('closeBlockTimeModalBtn');
             const blockTimeModal = document.getElementById('blockTimeModal');
             const blockTimeForm = document.getElementById('blockTimeForm');
+            const actionChoiceModal = document.getElementById('actionChoiceModal');
+            const newAppointmentChoiceBtn = document.getElementById('newAppointmentChoiceBtn');
+            const blockTimeChoiceBtn = document.getElementById('blockTimeChoiceBtn');
+            const cancelActionChoiceBtn = document.getElementById('cancelActionChoiceBtn');
             const confirmModal = document.getElementById('confirmModal');
             const confirmModalOk = document.getElementById('confirmModalOk');
             const confirmModalCancel = document.getElementById('confirmModalCancel');
@@ -827,7 +838,7 @@
                 renderCalendar(calendarDays, currentMonthYear);
                 renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl, ganhosProfissionalMesEl);
                 if (!dailyView.classList.contains('hidden')) {
-                    renderDailyView(dailyViewTimeSlots, dailyViewTitle, state.selectedDate, openAppointmentModal);
+                    renderDailyView(dailyViewTimeSlots, dailyViewTitle, state.selectedDate, openActionChoiceModal);
                 }
             };
             
@@ -842,7 +853,7 @@
                 dailyView.classList.remove('hidden');
                 monthViewBtn.classList.remove('active');
                 dayViewBtn.classList.add('active');
-                renderDailyView(dailyViewTimeSlots, dailyViewTitle, state.selectedDate, openAppointmentModal);
+                renderDailyView(dailyViewTimeSlots, dailyViewTitle, state.selectedDate, openActionChoiceModal);
             });
 
             calendarDays.addEventListener('click', (e) => {
@@ -990,7 +1001,7 @@
                 });
             });
 
-            openBlockTimeModalBtn.addEventListener('click', () => {
+            function openBlockTimeModal() {
                 blockTimeForm.reset();
                 document.getElementById('blockDate').value = state.selectedDate;
                 const profSelect = document.getElementById('blockProfessional');
@@ -1007,7 +1018,9 @@
                     document.getElementById('blockProfessionalName').textContent = state.professionalProfile.name;
                 }
                 blockTimeModal.classList.remove('hidden');
-            });
+            }
+
+            openBlockTimeModalBtn.addEventListener('click', openBlockTimeModal);
             closeBlockTimeModalBtn.addEventListener('click', () => blockTimeModal.classList.add('hidden'));
             blockTimeForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -1044,6 +1057,27 @@
                 } catch(err) { console.error(err); }
             });
 
+            function openActionChoiceModal(date, time) {
+                state.tempSlot = { date, time };
+                actionChoiceModal.classList.remove('hidden');
+            }
+
+            newAppointmentChoiceBtn.addEventListener('click', () => {
+                actionChoiceModal.classList.add('hidden');
+                openAppointmentModal(state.tempSlot.date);
+                document.getElementById('appointmentTime').value = state.tempSlot.time;
+            });
+
+            blockTimeChoiceBtn.addEventListener('click', () => {
+                actionChoiceModal.classList.add('hidden');
+                openBlockTimeModal();
+                document.getElementById('blockStartTime').value = state.tempSlot.time;
+            });
+            
+            cancelActionChoiceBtn.addEventListener('click', () => {
+                actionChoiceModal.classList.add('hidden');
+            });
+
             confirmModalOk.addEventListener('click', () => {
                 if (typeof confirmAction === 'function') { confirmAction(); }
                 confirmModal.classList.add('hidden');
@@ -1074,7 +1108,7 @@
                     renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl, ganhosProfissionalMesEl);
                     renderCalendar(calendarDays, currentMonthYear);
                     if(!document.getElementById('dailyView').classList.contains('hidden')) {
-                        renderDailyView(dailyViewTimeSlots, dailyViewTitle, state.selectedDate, openAppointmentModal);
+                        renderDailyView(dailyViewTimeSlots, dailyViewTitle, state.selectedDate, openActionChoiceModal);
                     }
                 };
                 if (state.role === 'admin') {
