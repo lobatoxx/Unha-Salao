@@ -246,9 +246,14 @@
                     <select id="appointmentProfessional" class="w-full px-4 py-2 border rounded-lg" required></select>
                     <select id="appointmentService" class="w-full px-4 py-2 border rounded-lg" required></select>
                 </div>
-                <div class="mt-6 flex justify-end gap-3">
-                    <button type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300" onclick="document.getElementById('addAppointmentModal').classList.add('hidden')">Cancelar</button>
-                    <button type="submit" class="bg-pink-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-pink-600">Salvar</button>
+                <div class="mt-6 flex justify-between items-center gap-3">
+                    <div>
+                        <button type="button" id="deleteAppointmentBtn" class="hidden bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600">Excluir</button>
+                    </div>
+                    <div class="flex gap-3">
+                        <button type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300" onclick="document.getElementById('addAppointmentModal').classList.add('hidden')">Cancelar</button>
+                        <button type="submit" class="bg-pink-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-pink-600">Salvar</button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -379,17 +384,14 @@
                     const startTimeStr = startTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                     const endTimeStr = endTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                     const el = document.createElement('div');
-                    el.className = 'bg-white p-3 rounded-lg shadow-sm border';
+                    el.className = 'bg-white p-3 rounded-lg shadow-sm border cursor-pointer hover:bg-gray-50';
+                    el.dataset.id = app.id;
                     el.innerHTML = `
-                        <div class="flex justify-between items-start">
+                        <div class="flex justify-between items-start pointer-events-none">
                             <div>
                                 <p class="font-bold text-pink-600">${startTimeStr} - ${endTimeStr}</p>
                                 <p class="font-semibold text-gray-800">${client}</p>
                                 <p class="text-sm text-gray-600">${serviceName} com ${prof}</p>
-                            </div>
-                            <div class="flex gap-2">
-                                <button class="edit-appointment-btn text-blue-500" data-id="${app.id}"><i class="fas fa-pencil-alt"></i></button>
-                                <button class="delete-appointment-btn text-red-500" data-id="${app.id}"><i class="fas fa-trash"></i></button>
                             </div>
                         </div>`;
                     appointmentsForDay.appendChild(el);
@@ -463,30 +465,6 @@
                 }
             }
             dailyViewTimeSlots.appendChild(backgroundSlots);
-
-            const overlapGroups = [];
-            dayAppointments.forEach(app => {
-                let placed = false;
-                const service = state.services.find(s => s.id === app.serviceId);
-                const duration = service?.duration || 0;
-                const appEndTime = new Date(app.date.getTime() + duration * 60000);
-
-                for (const group of overlapGroups) {
-                    const lastAppInGroup = group[group.length - 1];
-                    const lastService = state.services.find(s => s.id === lastAppInGroup.serviceId);
-                    const lastDuration = lastService?.duration || 0;
-                    const lastAppEndTime = new Date(lastAppInGroup.date.getTime() + lastDuration * 60000);
-                    
-                    if (app.date >= lastAppEndTime) {
-                        group.push(app);
-                        placed = true;
-                        break;
-                    }
-                }
-                if (!placed) {
-                    overlapGroups.push([app]);
-                }
-            });
             
             dayAppointments.forEach(app => {
                 const service = state.services.find(s => s.id === app.serviceId);
@@ -498,37 +476,37 @@
                 const topPosition = (startMinutes / SLOT_DURATION_MINUTES) * SLOT_HEIGHT_REM;
                 const height = (duration / SLOT_DURATION_MINUTES) * SLOT_HEIGHT_REM;
                 
-                let columnIndex = -1;
-                let numColumns = 1;
-
                 const appEndTime = new Date(app.date.getTime() + duration * 60000);
                 const overlappingApps = dayAppointments.filter(otherApp => {
+                    if (app.id === otherApp.id) return true;
                     const otherService = state.services.find(s => s.id === otherApp.serviceId);
                     const otherDuration = otherService?.duration || 0;
                     const otherAppEndTime = new Date(otherApp.date.getTime() + otherDuration * 60000);
                     return app.date < otherAppEndTime && otherApp.date < appEndTime;
                 });
 
-                numColumns = overlappingApps.length;
-                overlappingApps.sort((a,b) => a.date - b.date);
-                columnIndex = overlappingApps.findIndex(a => a.id === app.id);
+                const numColumns = overlappingApps.length;
+                const columnIndex = overlappingApps.findIndex(a => a.id === app.id);
                 
                 const width = 100 / numColumns;
                 const left = columnIndex * width;
                 
                 const el = document.createElement('div');
-                el.className = 'absolute flex flex-col p-2 border-l-4 border-pink-500 bg-pink-100 rounded-r-lg overflow-hidden';
+                el.className = 'absolute flex flex-col p-2 border-l-4 border-pink-500 bg-pink-100 rounded-r-lg overflow-hidden cursor-pointer hover:bg-pink-200';
                 el.style.top = `${topPosition}rem`;
                 el.style.height = `${height}rem`;
                 el.style.left = `calc(${left}% + 3.5rem)`;
                 el.style.width = `calc(${width}% - 0.2rem)`;
                 el.style.marginRight = '0.2rem';
+                el.dataset.id = app.id;
 
                 el.innerHTML = `
-                    <p class="font-semibold text-xs text-pink-900 truncate">${client?.name || ''}</p>
-                    <p class="text-xs text-pink-700 truncate">${service?.name || ''}</p>
-                    <p class="text-xs text-pink-600 truncate">${professional?.name || ''}</p>
+                    <p class="font-semibold text-xs text-pink-900 truncate pointer-events-none">${client?.name || ''}</p>
+                    <p class="text-xs text-pink-700 truncate pointer-events-none">${service?.name || ''}</p>
+                    <p class="text-xs text-pink-600 truncate pointer-events-none">${professional?.name || ''}</p>
                 `;
+                el.onclick = () => openAppointmentModal(app.date.toISOString().split('T')[0], app.id);
+
                 dailyViewTimeSlots.appendChild(el);
             });
         }
@@ -653,41 +631,28 @@
 
         function hasScheduleConflict(appointmentDetails) {
             const { id: appointmentId, professionalId, date, serviceId } = appointmentDetails;
-            
             const service = state.services.find(s => s.id === serviceId);
-            if (!service) {
-                console.error("Serviço não encontrado para checar conflito.");
-                return false; // Or handle error appropriately
-            }
+            if (!service) return false;
             
             const newStartTime = date.getTime();
             const newEndTime = newStartTime + (service.duration * 60000);
 
             for (const existingApp of state.appointments) {
-                // Ignore if it's not for the same professional
-                if (existingApp.professionalId !== professionalId) {
-                    continue;
-                }
-
-                // If editing, ignore the appointment itself
-                if (appointmentId && existingApp.id === appointmentId) {
-                    continue;
-                }
+                if (existingApp.professionalId !== professionalId) continue;
+                if (appointmentId && existingApp.id === appointmentId) continue;
 
                 const existingService = state.services.find(s => s.id === existingApp.serviceId);
-                const existingDuration = existingService?.duration || 0;
-                const existingStartTime = existingApp.date.getTime();
-                const existingEndTime = existingStartTime + (existingDuration * 60000);
+                if (!existingService) continue;
 
-                // Classic overlap check
+                const existingStartTime = existingApp.date.getTime();
+                const existingEndTime = existingStartTime + (existingService.duration * 60000);
+
                 if (newStartTime < existingEndTime && existingStartTime < newEndTime) {
-                    return true; // Conflict found
+                    return true;
                 }
             }
-
-            return false; // No conflicts
+            return false;
         }
-
 
         function main() {
             const loadingOverlay = document.getElementById('loadingOverlay');
@@ -737,6 +702,7 @@
             const addAppointmentForm = document.getElementById('addAppointmentForm');
             const appointmentModalTitle = document.getElementById('appointmentModalTitle');
             const appointmentIdToEdit = document.getElementById('appointmentIdToEdit');
+            const deleteAppointmentBtn = document.getElementById('deleteAppointmentBtn');
             const confirmModal = document.getElementById('confirmModal');
             const confirmModalOk = document.getElementById('confirmModalOk');
             const confirmModalCancel = document.getElementById('confirmModalCancel');
@@ -870,6 +836,7 @@
             function openAppointmentModal(date, appointmentId = null) {
                 addAppointmentForm.reset();
                 appointmentDate.value = date;
+                deleteAppointmentBtn.classList.add('hidden');
                 const clientSelect = document.getElementById('appointmentClient');
                 clientSelect.innerHTML = '<option value="">Selecione um cliente</option>';
                 state.clients.forEach(c => clientSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`);
@@ -887,6 +854,7 @@
                     clientSelect.value = app.clientId;
                     profSelect.value = app.professionalId;
                     serviceSelect.value = app.serviceId;
+                    deleteAppointmentBtn.classList.remove('hidden');
                 } else {
                     appointmentModalTitle.textContent = 'Novo Agendamento';
                     appointmentIdToEdit.value = '';
@@ -919,6 +887,17 @@
                     else { await addDoc(collection(db, 'appointments'), data); }
                     addAppointmentForm.reset(); addAppointmentModal.classList.add('hidden');
                 } catch (err) { console.error(err); }
+            });
+            deleteAppointmentBtn.addEventListener('click', () => {
+                const id = appointmentIdToEdit.value;
+                if (!id) return;
+                showConfirmModal('Tem certeza que deseja excluir este agendamento?', () => {
+                    deleteDoc(doc(db, 'appointments', id))
+                        .then(() => {
+                            addAppointmentModal.classList.add('hidden');
+                        })
+                        .catch(err => console.error(err));
+                });
             });
 
             confirmModalOk.addEventListener('click', () => {
@@ -1090,18 +1069,13 @@
             });
 
             appointmentsForDay.addEventListener('click', (e) => {
-                const editBtn = e.target.closest('.edit-appointment-btn');
-                const deleteBtn = e.target.closest('.delete-appointment-btn');
-                if (editBtn) {
-                    const appId = editBtn.dataset.id;
+                const appointmentCard = e.target.closest('[data-id]');
+                if (appointmentCard) {
+                    const appId = appointmentCard.dataset.id;
                     const app = state.appointments.find(a => a.id === appId);
-                    if (app) { openAppointmentModal(app.date.toISOString().split('T')[0], appId); }
-                }
-                if (deleteBtn) {
-                    const appId = deleteBtn.dataset.id;
-                    showConfirmModal('Tem certeza que deseja excluir este agendamento?', () => {
-                        deleteDoc(doc(db, 'appointments', appId)).catch(err => console.error(err));
-                    });
+                    if (app) {
+                        openAppointmentModal(app.date.toISOString().split('T')[0], appId);
+                    }
                 }
             });
         }
