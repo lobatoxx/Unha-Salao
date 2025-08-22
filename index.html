@@ -22,6 +22,7 @@
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
         .calendar-day { aspect-ratio: 1 / 1; }
         .day-selected { background-color: #fbcfe8; /* pink-200 */ }
+        .view-toggle button.active { background-color: #ec4899; color: white; }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -110,15 +111,28 @@
                     <h2 id="currentMonthYear" class="text-lg font-bold text-gray-800"></h2>
                     <button id="nextMonthBtn" class="p-2 rounded-full hover:bg-gray-100"><i class="fas fa-chevron-right"></i></button>
                 </div>
-                <div class="calendar-grid text-center text-xs font-bold text-gray-500 mb-2">
-                    <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+
+                <div class="view-toggle flex justify-center mb-4 bg-gray-200 rounded-lg p-1">
+                    <button id="monthViewBtn" class="w-1/2 py-1 text-sm font-semibold rounded-md active">Mês</button>
+                    <button id="dayViewBtn" class="w-1/2 py-1 text-sm font-semibold rounded-md">Dia</button>
                 </div>
-                <div id="calendarDays" class="calendar-grid"></div>
-                <div class="mt-4">
-                    <h3 id="appointmentsTitle" class="font-bold text-gray-700">Agendamentos do dia:</h3>
-                    <div id="appointmentsForDay" class="mt-2 space-y-2">
-                         <p class="text-center text-gray-500 text-sm">Selecione um dia para ver os agendamentos.</p>
+
+                <div id="monthlyView">
+                    <div class="calendar-grid text-center text-xs font-bold text-gray-500 mb-2">
+                        <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
                     </div>
+                    <div id="calendarDays" class="calendar-grid"></div>
+                    <div class="mt-4">
+                        <h3 id="appointmentsTitle" class="font-bold text-gray-700">Agendamentos do dia:</h3>
+                        <div id="appointmentsForDay" class="mt-2 space-y-2">
+                             <p class="text-center text-gray-500 text-sm">Selecione um dia para ver os agendamentos.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="dailyView" class="hidden">
+                    <h3 id="dailyViewTitle" class="font-bold text-gray-700 mb-2 text-center"></h3>
+                    <div id="dailyViewTimeSlots" class="space-y-1"></div>
                 </div>
             </div>
 
@@ -275,7 +289,7 @@
             professionalProfile: null,
             appointments: [], professionals: [], clients: [], services: [], 
             currentDate: new Date(),
-            selectedDate: null
+            selectedDate: new Date().toISOString().split('T')[0] // Initialize selectedDate to today
         };
 
         // Unsubscribe functions to prevent memory leaks
@@ -389,7 +403,7 @@
             appointmentsForDay.appendChild(newAppointmentBtn);
         }
 
-        function renderCalendar(calendarDays, currentMonthYear, appointmentsForDay, appointmentsTitle, openAppointmentModal) {
+        function renderCalendar(calendarDays, currentMonthYear) {
             calendarDays.innerHTML = '';
             const date = state.currentDate;
             const year = date.getFullYear();
@@ -413,37 +427,97 @@
                 }
                 calendarDays.appendChild(dayEl);
             }
-            document.querySelectorAll('.calendar-day').forEach(day => {
-                if(day.dataset.date) {
-                    day.addEventListener('click', (e) => {
-                        document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('day-selected'));
-                        e.currentTarget.classList.add('day-selected');
-                        renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, e.currentTarget.dataset.date, openAppointmentModal);
-                    });
+        }
+
+        function renderDailyView(dailyViewTimeSlots, dailyViewTitle, dateString, openAppointmentModal) {
+            const date = new Date(dateString + 'T00:00:00');
+            dailyViewTitle.textContent = `Agenda para ${date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}`;
+            dailyViewTimeSlots.innerHTML = '';
+
+            const dayAppointments = state.appointments
+                .filter(app => app.date && app.date.toISOString().split('T')[0] === dateString)
+                .sort((a, b) => a.date - b.date);
+
+            const START_HOUR = 8;
+            const END_HOUR = 19;
+            const SLOT_DURATION_MINUTES = 30;
+
+            let currentTime = new Date(date);
+            currentTime.setHours(START_HOUR, 0, 0, 0);
+
+            const endOfDay = new Date(date);
+            endOfDay.setHours(END_HOUR, 0, 0, 0);
+
+            let appointmentIndex = 0;
+
+            while (currentTime < endOfDay) {
+                const slotTimeStr = currentTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                let appointment = null;
+
+                if (appointmentIndex < dayAppointments.length) {
+                    const appTime = dayAppointments[appointmentIndex].date;
+                    if (appTime.getHours() === currentTime.getHours() && appTime.getMinutes() === currentTime.getMinutes()) {
+                        appointment = dayAppointments[appointmentIndex];
+                    }
                 }
-            });
+
+                if (appointment) {
+                    const service = state.services.find(s => s.id === appointment.serviceId);
+                    const client = state.clients.find(c => c.id === appointment.clientId);
+                    const professional = state.professionals.find(p => p.id === appointment.professionalId);
+                    const duration = service?.duration || SLOT_DURATION_MINUTES;
+                    const numSlots = Math.ceil(duration / SLOT_DURATION_MINUTES);
+
+                    const el = document.createElement('div');
+                    el.className = 'relative flex items-start p-2 border-l-4 border-pink-500 bg-pink-50 rounded-r-lg';
+                    el.style.height = `${numSlots * 2.5}rem`; // 2.5rem per slot height approx
+                    el.innerHTML = `
+                        <div class="text-xs font-bold text-gray-600 w-12">${slotTimeStr}</div>
+                        <div class="pl-2">
+                            <p class="font-semibold text-sm text-gray-800">${client?.name || 'Cliente não encontrado'}</p>
+                            <p class="text-xs text-gray-600">${service?.name || 'Serviço não encontrado'}</p>
+                            <p class="text-xs text-gray-500">com ${professional?.name || 'Profissional não encontrado'}</p>
+                        </div>
+                    `;
+                    dailyViewTimeSlots.appendChild(el);
+
+                    currentTime.setMinutes(currentTime.getMinutes() + (numSlots * SLOT_DURATION_MINUTES));
+                    appointmentIndex++;
+                } else {
+                    const el = document.createElement('div');
+                    el.className = 'flex items-start p-2 border-l-4 border-gray-200 hover:bg-gray-100 cursor-pointer';
+                    el.style.height = '2.5rem';
+                    el.dataset.date = dateString;
+                    el.dataset.time = slotTimeStr;
+                    el.innerHTML = `
+                        <div class="text-xs font-bold text-gray-400 w-12">${slotTimeStr}</div>
+                        <div class="pl-2 text-xs text-gray-400">Horário vago</div>
+                    `;
+                    el.onclick = () => {
+                        openAppointmentModal(el.dataset.date);
+                        document.getElementById('appointmentTime').value = el.dataset.time;
+                    };
+                    dailyViewTimeSlots.appendChild(el);
+                    currentTime.setMinutes(currentTime.getMinutes() + SLOT_DURATION_MINUTES);
+                }
+            }
         }
         
         function renderDashboard(agendamentosHojeEl, faturamentoHojeEl, totalClientesEl, totalServicosEl, proximosAgendamentosEl) {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const todayStr = today.toISOString().split('T')[0];
-
-            // Appointments for today are already filtered based on role
             const agendamentosDeHoje = state.appointments.filter(app => app.date && app.date.toISOString().split('T')[0] === todayStr);
             agendamentosHojeEl.textContent = agendamentosDeHoje.length;
-
             const faturamentoDeHoje = agendamentosDeHoje.reduce((total, app) => {
                 const service = state.services.find(s => s.id === app.serviceId);
                 return total + (service?.price || 0);
             }, 0);
             faturamentoHojeEl.textContent = `R$ ${faturamentoDeHoje.toFixed(2).replace('.', ',')}`;
-
             if (state.role === 'admin') {
                 totalClientesEl.textContent = state.clients.length;
                 totalServicosEl.textContent = state.services.length;
             }
-            
             const proximos = state.appointments.filter(app => app.date && app.date >= today).sort((a, b) => a.date - b.date).slice(0, 3);
             proximosAgendamentosEl.innerHTML = '';
             if (proximos.length === 0) {
@@ -467,14 +541,10 @@
             const date = state.currentDate;
             const year = date.getFullYear();
             const month = date.getMonth();
-
             financeiroCurrentMonthYear.textContent = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-            
-            // Appointments in month are already filtered by role
             const appointmentsInMonth = state.appointments.filter(app => {
                 return app.date && app.date.getFullYear() === year && app.date.getMonth() === month;
             });
-
             if (state.role === 'admin') {
                 let totalMonthRevenue = 0;
                 detalhesFinanceiroEl.innerHTML = '';
@@ -513,7 +583,6 @@
 
         function updateUIVisibility() {
             const role = state.role;
-            // Get all elements that change
             const equipeBtn = document.querySelector('button[data-page="equipePage"]');
             const servicosBtn = document.querySelector('button[data-page="servicosPage"]');
             const openClientModalBtn = document.getElementById('openClientModalBtn');
@@ -522,30 +591,21 @@
             const adminFinancialSummary = document.getElementById('adminFinancialSummary');
             const adminFinancialDetails = document.getElementById('adminFinancialDetails');
             const professionalFinancialSummary = document.getElementById('professionalFinancialSummary');
-
             if (role === 'professional') {
-                // Hide nav buttons
                 equipeBtn.style.display = 'none';
                 servicosBtn.style.display = 'none';
-                // Hide action buttons
                 openClientModalBtn.style.display = 'none';
-                // Hide dashboard cards
                 totalClientesCard.style.display = 'none';
                 totalServicosCard.style.display = 'none';
-                // Adapt financial page
                 adminFinancialSummary.style.display = 'none';
                 adminFinancialDetails.style.display = 'none';
                 professionalFinancialSummary.classList.remove('hidden');
-            } else { // Admin
-                // Show nav buttons
+            } else {
                 equipeBtn.style.display = 'block';
                 servicosBtn.style.display = 'block';
-                // Show action buttons
                 openClientModalBtn.style.display = 'block';
-                // Show dashboard cards
                 totalClientesCard.style.display = 'block';
                 totalServicosCard.style.display = 'block';
-                // Adapt financial page
                 adminFinancialSummary.style.display = 'block';
                 adminFinancialDetails.style.display = 'block';
                 professionalFinancialSummary.classList.add('hidden');
@@ -598,6 +658,12 @@
             const currentMonthYear = document.getElementById('currentMonthYear');
             const calendarDays = document.getElementById('calendarDays');
             const appointmentsForDay = document.getElementById('appointmentsForDay');
+            const monthViewBtn = document.getElementById('monthViewBtn');
+            const dayViewBtn = document.getElementById('dayViewBtn');
+            const monthlyView = document.getElementById('monthlyView');
+            const dailyView = document.getElementById('dailyView');
+            const dailyViewTitle = document.getElementById('dailyViewTitle');
+            const dailyViewTimeSlots = document.getElementById('dailyViewTimeSlots');
             const addAppointmentModal = document.getElementById('addAppointmentModal');
             const closeAppointmentModalBtn = document.getElementById('closeAppointmentModalBtn');
             const addAppointmentForm = document.getElementById('addAppointmentForm');
@@ -635,9 +701,38 @@
             logoutButton.addEventListener('click', () => signOut(auth));
 
             const refreshCalendarsAndFinance = () => {
-                renderCalendar(calendarDays, currentMonthYear, appointmentsForDay, appointmentsTitle, openAppointmentModal);
+                renderCalendar(calendarDays, currentMonthYear);
                 renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl, ganhosProfissionalMesEl);
+                if (!dailyView.classList.contains('hidden')) {
+                    renderDailyView(dailyViewTimeSlots, dailyViewTitle, state.selectedDate, openAppointmentModal);
+                }
             };
+            
+            monthViewBtn.addEventListener('click', () => {
+                monthlyView.style.display = 'block';
+                dailyView.classList.add('hidden');
+                monthViewBtn.classList.add('active');
+                dayViewBtn.classList.remove('active');
+            });
+            dayViewBtn.addEventListener('click', () => {
+                monthlyView.style.display = 'none';
+                dailyView.classList.remove('hidden');
+                monthViewBtn.classList.remove('active');
+                dayViewBtn.classList.add('active');
+                renderDailyView(dailyViewTimeSlots, dailyViewTitle, state.selectedDate, openAppointmentModal);
+            });
+
+            calendarDays.addEventListener('click', (e) => {
+                const dayEl = e.target.closest('.calendar-day');
+                if (dayEl && dayEl.dataset.date) {
+                    document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('day-selected'));
+                    dayEl.classList.add('day-selected');
+                    state.selectedDate = dayEl.dataset.date;
+                    renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, state.selectedDate, openAppointmentModal);
+                    // Switch to daily view automatically
+                    dayViewBtn.click();
+                }
+            });
 
             prevMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() - 1); refreshCalendarsAndFinance(); });
             nextMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() + 1); refreshCalendarsAndFinance(); });
@@ -770,27 +865,21 @@
             });
 
             function setupDataListeners() {
-                // Clear previous listeners to avoid duplicates
                 unsubscribes.forEach(unsub => unsub());
                 unsubscribes = [];
-
-                const collectionsToRender = ['services', 'professionals', 'clients', 'appointments'];
-                
-                const renderAll = () => collectionsToRender.forEach(key => {
-                    switch(key) {
-                        case 'services': renderServices(servicesList); break;
-                        case 'professionals': renderProfessionals(professionalsList); break;
-                        case 'clients': renderClients(clientsList); break;
-                        case 'appointments':
-                            renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, null, openAppointmentModal);
-                            renderDashboard(agendamentosHojeEl, faturamentoHojeEl, totalClientesEl, totalServicosEl, proximosAgendamentosEl);
-                            renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl, ganhosProfissionalMesEl);
-                            break;
+                const renderAll = () => {
+                    renderServices(servicesList);
+                    renderProfessionals(professionalsList);
+                    renderClients(clientsList);
+                    renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, state.selectedDate, openAppointmentModal);
+                    renderDashboard(agendamentosHojeEl, faturamentoHojeEl, totalClientesEl, totalServicosEl, proximosAgendamentosEl);
+                    renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl, ganhosProfissionalMesEl);
+                    renderCalendar(calendarDays, currentMonthYear);
+                    if(!document.getElementById('dailyView').classList.contains('hidden')) {
+                        renderDailyView(dailyViewTimeSlots, dailyViewTitle, state.selectedDate, openAppointmentModal);
                     }
-                });
-
+                };
                 if (state.role === 'admin') {
-                    // Admin gets everything
                     const paths = { appointments: "appointments", professionals: "professionals", clients: "clients", services: "services" };
                     Object.keys(paths).forEach(key => {
                         const q = query(collection(db, paths[key]));
@@ -801,7 +890,6 @@
                         unsubscribes.push(unsub);
                     });
                 } else if (state.role === 'professional') {
-                    // Professional gets their appointments, and static lists of the rest for context
                     const staticCollections = ['clients', 'services', 'professionals'];
                     staticCollections.forEach(key => {
                         const q = query(collection(db, key));
@@ -811,8 +899,6 @@
                         });
                         unsubscribes.push(unsub);
                     });
-
-                    // Live listener only for their appointments
                     const appointmentsQuery = query(collection(db, 'appointments'), where("professionalId", "==", state.professionalProfile.id));
                     const unsubAppointments = onSnapshot(appointmentsQuery, (snapshot) => {
                         state.appointments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), date: doc.data().date?.toDate() }));
@@ -841,7 +927,7 @@
                     updateUIVisibility();
                     setupDataListeners();
                     
-                    renderCalendar(calendarDays, currentMonthYear, appointmentsForDay, appointmentsTitle, openAppointmentModal);
+                    renderCalendar(calendarDays, currentMonthYear);
                     appContainer.classList.remove('hidden'); 
                     loginPage.classList.add('hidden');
                 } else {
