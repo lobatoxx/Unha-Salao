@@ -170,6 +170,21 @@
                 <button data-page="financeiroPage" class="nav-btn text-center text-gray-400"><i class="fas fa-chart-pie text-xl"></i><p class="text-xs">Financeiro</p></button>
             </div>
         </footer>
+
+        <div id="reminderToast" class="hidden fixed bottom-20 left-1/2 -translate-x-1/2 w-11/12 max-w-sm bg-white p-4 rounded-lg shadow-2xl border border-pink-200 z-50">
+            <div class="flex items-start gap-3">
+                <div class="text-pink-500 mt-1"><i class="fas fa-clock"></i></div>
+                <div>
+                    <h4 class="font-bold text-gray-800">Finalizar Atendimento</h4>
+                    <p id="reminderText" class="text-sm text-gray-600 mt-1"></p>
+                    <div class="flex gap-2 mt-3">
+                        <button id="reminderInvoiceBtn" class="bg-green-500 text-white px-3 py-1 text-sm rounded-md font-semibold hover:bg-green-600">Faturar</button>
+                        <button id="reminderRescheduleBtn" class="bg-blue-500 text-white px-3 py-1 text-sm rounded-md font-semibold hover:bg-blue-600">Reagendar</button>
+                    </div>
+                </div>
+                <button id="closeReminderToastBtn" class="text-gray-400 hover:text-gray-600 ml-auto">&times;</button>
+            </div>
+        </div>
     </div>
     
     <div id="whatsappMessageModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
@@ -374,6 +389,7 @@
         ];
 
         let unsubscribes = [];
+        let reminderInterval = null;
         
         function renderServices(servicesList) {
             if (!servicesList) return;
@@ -467,10 +483,11 @@
                         const endTime = new Date(app.date.getTime() + app.duration * 60000);
                         const endTimeStr = endTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                         el.innerHTML = `
-                            <p class="font-bold text-gray-600">${startTimeStr} - ${endTimeStr}</p>
-                            <p class="font-semibold text-gray-800"><i class="fas fa-lock mr-2"></i>Bloqueado</p>
-                            <p class="text-sm text-gray-600">${app.reason || 'Motivo não informado'}</p>
-                        `;
+                            <div class="pointer-events-none">
+                                <p class="font-bold text-gray-600">${startTimeStr} - ${endTimeStr}</p>
+                                <p class="font-semibold text-gray-800"><i class="fas fa-lock mr-2"></i>Bloqueado</p>
+                                <p class="text-sm text-gray-600">${app.reason || 'Motivo não informado'}</p>
+                            </div>`;
                     } else {
                         const client = state.clients.find(c => c.id === app.clientId);
                         const service = state.services.find(s => s.id === app.serviceId);
@@ -482,16 +499,17 @@
                         const startTimeStr = startTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                         const endTimeStr = endTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                         el.innerHTML = `
-                            <div class="flex items-center">
-                                <p class="font-bold text-pink-600">${startTimeStr} - ${endTimeStr}</p>
-                                ${statusIcon}
-                            </div>
-                            <div class="flex items-center">
-                                <p class="font-semibold text-gray-800">${client?.name || '...'}</p>
-                                <button class="whatsapp-btn text-green-500 ml-2 text-sm" data-id="${client?.id}"><i class="fab fa-whatsapp"></i></button>
-                            </div>
-                            <p class="text-sm text-gray-600">${serviceName} com ${prof}</p>
-                        `;
+                            <div>
+                                <div class="flex items-center pointer-events-none">
+                                    <p class="font-bold text-pink-600">${startTimeStr} - ${endTimeStr}</p>
+                                    ${statusIcon}
+                                </div>
+                                <div class="flex items-center">
+                                    <p class="font-semibold text-gray-800 pointer-events-none">${client?.name || '...'}</p>
+                                    <button class="whatsapp-btn text-green-500 ml-2 text-sm" data-id="${client?.id}"><i class="fab fa-whatsapp"></i></button>
+                                </div>
+                                <p class="text-sm text-gray-600 pointer-events-none">${serviceName} com ${prof}</p>
+                            </div>`;
                     }
                     appointmentsForDay.appendChild(el);
                 });
@@ -609,9 +627,9 @@
 
                 let statusIcon = '';
                  if (app.status === 'faturado') {
-                    statusIcon = `<i class="fas fa-dollar-sign text-green-600 text-xs absolute top-1 right-1 pointer-events-none"></i>`;
+                    statusIcon = `<i class="fas fa-dollar-sign text-green-600 text-xs absolute top-1 right-1"></i>`;
                 } else if (app.status === 'cancelado') {
-                    statusIcon = `<i class="fas fa-ban text-red-600 text-xs absolute top-1 right-1 pointer-events-none"></i>`;
+                    statusIcon = `<i class="fas fa-ban text-red-600 text-xs absolute top-1 right-1"></i>`;
                 }
 
                 if(isBlock) {
@@ -880,6 +898,11 @@
             const whatsappMessageModal = document.getElementById('whatsappMessageModal');
             const whatsappMessagesList = document.getElementById('whatsappMessagesList');
             const closeWhatsappMessageModalBtn = document.getElementById('closeWhatsappMessageModalBtn');
+            const reminderToast = document.getElementById('reminderToast');
+            const reminderText = document.getElementById('reminderText');
+            const reminderInvoiceBtn = document.getElementById('reminderInvoiceBtn');
+            const reminderRescheduleBtn = document.getElementById('reminderRescheduleBtn');
+            const closeReminderToastBtn = document.getElementById('closeReminderToastBtn');
 
             registerButton.addEventListener('click', async () => {
                 const email = emailInput.value;
@@ -1070,16 +1093,15 @@
                 });
             });
 
-            const updateAppointmentStatus = async (status) => {
-                const id = appointmentIdToEdit.value;
+            const updateAppointmentStatus = async (status, id) => {
                 if (!id) return;
                 try {
                     await updateDoc(doc(db, 'appointments', id), { status });
                     addAppointmentModal.classList.add('hidden');
                 } catch(err) { console.error(err); }
             };
-            invoiceAppointmentBtn.addEventListener('click', () => updateAppointmentStatus('faturado'));
-            cancelAppointmentBtn.addEventListener('click', () => updateAppointmentStatus('cancelado'));
+            invoiceAppointmentBtn.addEventListener('click', () => updateAppointmentStatus('faturado', appointmentIdToEdit.value));
+            cancelAppointmentBtn.addEventListener('click', () => updateAppointmentStatus('cancelado', appointmentIdToEdit.value));
 
             function openBlockTimeModal(blockId = null) {
                 blockTimeForm.reset();
@@ -1225,6 +1247,47 @@
                 whatsappMessageModal.classList.add('hidden');
             });
 
+            function showReminderToast(app) {
+                const client = state.clients.find(c => c.id === app.clientId);
+                reminderText.textContent = `Atendimento de ${client?.name || 'Cliente'} finalizou. Deseja faturar ou reagendar?`;
+                reminderInvoiceBtn.dataset.id = app.id;
+                reminderRescheduleBtn.dataset.id = app.id;
+                reminderToast.classList.remove('hidden');
+                const remindedApp = state.appointments.find(a => a.id === app.id);
+                if (remindedApp) remindedApp.reminderSent = true;
+            }
+
+            closeReminderToastBtn.addEventListener('click', () => reminderToast.classList.add('hidden'));
+            reminderInvoiceBtn.addEventListener('click', (e) => {
+                updateAppointmentStatus('faturado', e.target.dataset.id);
+                reminderToast.classList.add('hidden');
+            });
+            reminderRescheduleBtn.addEventListener('click', (e) => {
+                const appId = e.target.dataset.id;
+                const app = state.appointments.find(a => a.id === appId);
+                if (app) openAppointmentModal(app.date.toISOString().split('T')[0], appId);
+                reminderToast.classList.add('hidden');
+            });
+
+            function checkAppointmentsForReminders() {
+                if (state.role !== 'professional') return;
+                const now = new Date();
+                for (const app of state.appointments) {
+                    if (app.status !== 'agendado' || app.type !== 'booking' || app.reminderSent) continue;
+                    
+                    const service = state.services.find(s => s.id === app.serviceId);
+                    if (!service) continue;
+
+                    const endTime = new Date(app.date.getTime() + service.duration * 60000);
+                    const reminderTime = new Date(endTime.getTime() + 10 * 60000); // 10 minutes after end
+                    
+                    if (now > reminderTime) {
+                        showReminderToast(app);
+                        break; // Show one reminder at a time
+                    }
+                }
+            }
+
             confirmModalOk.addEventListener('click', () => {
                 if (typeof confirmAction === 'function') { confirmAction(); }
                 confirmModal.classList.add('hidden');
@@ -1289,6 +1352,7 @@
             }
 
             onAuthStateChanged(auth, async (user) => {
+                if (reminderInterval) clearInterval(reminderInterval);
                 if (user) {
                     state.user = user;
                     const professionalsRef = collection(db, 'professionals');
@@ -1299,6 +1363,7 @@
                         const professionalDoc = professionalSnapshot.docs[0];
                         state.professionalProfile = { id: professionalDoc.id, ...professionalDoc.data() };
                         state.role = 'professional';
+                        reminderInterval = setInterval(checkAppointmentsForReminders, 60000); // Check every minute
                     } else {
                         state.professionalProfile = null;
                         state.role = 'admin';
@@ -1402,6 +1467,7 @@
             const handleAgendaClick = (e) => {
                 const whatsAppBtn = e.target.closest('.whatsapp-btn');
                 if (whatsAppBtn) {
+                    e.stopPropagation();
                     openWhatsAppMessageModal(whatsAppBtn.dataset.id);
                     return;
                 }
