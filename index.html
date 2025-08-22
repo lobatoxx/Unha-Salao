@@ -179,7 +179,7 @@
                 <button id="closeWhatsappMessageModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
             </div>
             <div id="whatsappMessagesList" class="space-y-2 max-h-64 overflow-y-auto">
-                </div>
+            </div>
         </div>
     </div>
     <div id="addServiceModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-40">
@@ -435,7 +435,7 @@
             });
         }
 
-        function renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, dateString, openAppointmentModal, openBlockTimeModal) {
+        function renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, dateString) {
             if (dateString) { state.selectedDate = dateString; }
             const selected = state.selectedDate;
             if (!selected) {
@@ -467,13 +467,12 @@
                         const endTime = new Date(app.date.getTime() + app.duration * 60000);
                         const endTimeStr = endTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                         el.innerHTML = `
-                            <div class="pointer-events-none">
-                                <p class="font-bold text-gray-600">${startTimeStr} - ${endTimeStr}</p>
-                                <p class="font-semibold text-gray-800"><i class="fas fa-lock mr-2"></i>Bloqueado</p>
-                                <p class="text-sm text-gray-600">${app.reason || 'Motivo não informado'}</p>
-                            </div>`;
+                            <p class="font-bold text-gray-600">${startTimeStr} - ${endTimeStr}</p>
+                            <p class="font-semibold text-gray-800"><i class="fas fa-lock mr-2"></i>Bloqueado</p>
+                            <p class="text-sm text-gray-600">${app.reason || 'Motivo não informado'}</p>
+                        `;
                     } else {
-                        const client = state.clients.find(c => c.id === app.clientId)?.name || '...';
+                        const client = state.clients.find(c => c.id === app.clientId);
                         const service = state.services.find(s => s.id === app.serviceId);
                         const serviceName = service?.name || '...';
                         const prof = state.professionals.find(p => p.id === app.professionalId)?.name || '...';
@@ -483,14 +482,16 @@
                         const startTimeStr = startTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                         const endTimeStr = endTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                         el.innerHTML = `
-                            <div class="pointer-events-none">
-                                <div class="flex items-center">
-                                    <p class="font-bold text-pink-600">${startTimeStr} - ${endTimeStr}</p>
-                                    ${statusIcon}
-                                </div>
-                                <p class="font-semibold text-gray-800">${client}</p>
-                                <p class="text-sm text-gray-600">${serviceName} com ${prof}</p>
-                            </div>`;
+                            <div class="flex items-center">
+                                <p class="font-bold text-pink-600">${startTimeStr} - ${endTimeStr}</p>
+                                ${statusIcon}
+                            </div>
+                            <div class="flex items-center">
+                                <p class="font-semibold text-gray-800">${client?.name || '...'}</p>
+                                <button class="whatsapp-btn text-green-500 ml-2 text-sm" data-id="${client?.id}"><i class="fab fa-whatsapp"></i></button>
+                            </div>
+                            <p class="text-sm text-gray-600">${serviceName} com ${prof}</p>
+                        `;
                     }
                     appointmentsForDay.appendChild(el);
                 });
@@ -528,7 +529,7 @@
             }
         }
 
-        function renderDailyView(dailyViewTimeSlots, dailyViewTitle, dateString, openActionChoiceModal, openAppointmentModal, openBlockTimeModal) {
+        function renderDailyView(dailyViewTimeSlots, dailyViewTitle, dateString, openActionChoiceModal) {
             const date = new Date(dateString + 'T00:00:00');
             dailyViewTitle.textContent = `Agenda para ${date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}`;
             dailyViewTimeSlots.innerHTML = '';
@@ -608,14 +609,14 @@
 
                 let statusIcon = '';
                  if (app.status === 'faturado') {
-                    statusIcon = `<i class="fas fa-dollar-sign text-green-600 text-xs absolute top-1 right-1"></i>`;
+                    statusIcon = `<i class="fas fa-dollar-sign text-green-600 text-xs absolute top-1 right-1 pointer-events-none"></i>`;
                 } else if (app.status === 'cancelado') {
-                    statusIcon = `<i class="fas fa-ban text-red-600 text-xs absolute top-1 right-1"></i>`;
+                    statusIcon = `<i class="fas fa-ban text-red-600 text-xs absolute top-1 right-1 pointer-events-none"></i>`;
                 }
 
                 if(isBlock) {
                     el.innerHTML = `
-                        <div class="flex items-center gap-2 pointer-events-none">
+                        <div class="flex items-center gap-2">
                             <i class="fas fa-lock text-gray-600 text-xs"></i>
                             <div>
                                 <p class="font-semibold text-xs text-gray-800 truncate">${app.reason || 'Bloqueado'}</p>
@@ -625,9 +626,12 @@
                     `;
                 } else {
                     el.innerHTML = `
-                        <p class="font-semibold text-xs text-pink-900 truncate pointer-events-none">${client?.name || ''}</p>
-                        <p class="text-xs text-pink-700 truncate pointer-events-none">${service?.name || ''}</p>
-                        <p class="text-xs text-pink-600 truncate pointer-events-none">${professional?.name || ''}</p>
+                        <div class="flex items-center">
+                            <p class="font-semibold text-xs text-pink-900 truncate">${client?.name || ''}</p>
+                            <button class="whatsapp-btn text-green-500 ml-2 text-xs flex-shrink-0" data-id="${client?.id}"><i class="fab fa-whatsapp"></i></button>
+                        </div>
+                        <p class="text-xs text-pink-700 truncate">${service?.name || ''}</p>
+                        <p class="text-xs text-pink-600 truncate">${professional?.name || ''}</p>
                         ${statusIcon}
                     `;
                 }
@@ -895,10 +899,10 @@
 
             const refreshAllViews = () => {
                 renderCalendar(calendarDays, currentMonthYear);
-                renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, state.selectedDate, openAppointmentModal, openBlockTimeModal);
+                renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, state.selectedDate);
                 renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl, ganhosProfissionalMesEl);
                 if (!dailyView.classList.contains('hidden')) {
-                    renderDailyView(dailyViewTimeSlots, dailyViewTitle, state.selectedDate, openActionChoiceModal, openAppointmentModal, openBlockTimeModal);
+                    renderDailyView(dailyViewTimeSlots, dailyViewTitle, state.selectedDate, openActionChoiceModal);
                 }
             };
             
@@ -913,7 +917,7 @@
                 dailyView.classList.remove('hidden');
                 monthViewBtn.classList.remove('active');
                 dayViewBtn.classList.add('active');
-                renderDailyView(dailyViewTimeSlots, dailyViewTitle, state.selectedDate, openActionChoiceModal, openAppointmentModal, openBlockTimeModal);
+                renderDailyView(dailyViewTimeSlots, dailyViewTitle, state.selectedDate, openActionChoiceModal);
             });
 
             calendarDays.addEventListener('click', (e) => {
@@ -922,7 +926,7 @@
                     document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('day-selected'));
                     dayEl.classList.add('day-selected');
                     state.selectedDate = dayEl.dataset.date;
-                    renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, state.selectedDate, openAppointmentModal, openBlockTimeModal);
+                    renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, state.selectedDate);
                     dayViewBtn.click();
                 }
             });
@@ -1247,12 +1251,12 @@
                     renderServices(allElements.servicesList);
                     renderProfessionals(allElements.professionalsList);
                     renderClients(allElements.clientsList);
-                    renderAppointmentsForDay(allElements.appointmentsForDay, allElements.appointmentsTitle, state.selectedDate, allElements.openAppointmentModal, allElements.openBlockTimeModal);
+                    renderAppointmentsForDay(allElements.appointmentsForDay, allElements.appointmentsTitle, state.selectedDate);
                     renderDashboard(allElements.agendamentosHojeEl, allElements.faturamentoHojeEl, allElements.totalClientesEl, allElements.totalServicosEl, allElements.proximosAgendamentosEl);
                     renderFinanceiro(allElements.financeiroCurrentMonthYear, allElements.detalhesFinanceiroEl, allElements.faturamentoTotalMesEl, allElements.ganhosProfissionalMesEl);
                     renderCalendar(allElements.calendarDays, allElements.currentMonthYear);
                     if(!document.getElementById('dailyView').classList.contains('hidden')) {
-                        renderDailyView(allElements.dailyViewTimeSlots, allElements.dailyViewTitle, state.selectedDate, allElements.openActionChoiceModal, allElements.openAppointmentModal, allElements.openBlockTimeModal);
+                        renderDailyView(allElements.dailyViewTimeSlots, allElements.dailyViewTitle, state.selectedDate, allElements.openActionChoiceModal);
                     }
                 };
                 if (state.role === 'admin') {
@@ -1396,6 +1400,12 @@
             });
 
             const handleAgendaClick = (e) => {
+                const whatsAppBtn = e.target.closest('.whatsapp-btn');
+                if (whatsAppBtn) {
+                    openWhatsAppMessageModal(whatsAppBtn.dataset.id);
+                    return;
+                }
+
                 const itemCard = e.target.closest('[data-id]');
                 if (itemCard) {
                     const appId = itemCard.dataset.id;
