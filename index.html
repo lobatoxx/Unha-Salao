@@ -132,7 +132,7 @@
 
                 <div id="dailyView" class="hidden">
                     <h3 id="dailyViewTitle" class="font-bold text-gray-700 mb-2 text-center"></h3>
-                    <div id="dailyViewTimeSlots" class="space-y-1"></div>
+                    <div id="dailyViewTimeSlots" class="relative"></div>
                 </div>
             </div>
 
@@ -285,14 +285,13 @@
 
         let state = { 
             user: null, 
-            role: 'admin', // Default role
+            role: 'admin', 
             professionalProfile: null,
             appointments: [], professionals: [], clients: [], services: [], 
             currentDate: new Date(),
-            selectedDate: new Date().toISOString().split('T')[0] // Initialize selectedDate to today
+            selectedDate: new Date().toISOString().split('T')[0]
         };
 
-        // Unsubscribe functions to prevent memory leaks
         let unsubscribes = [];
         
         function renderServices(servicesList) {
@@ -441,66 +440,90 @@
             const START_HOUR = 8;
             const END_HOUR = 19;
             const SLOT_DURATION_MINUTES = 30;
+            const SLOT_HEIGHT_REM = 2.5;
 
-            let currentTime = new Date(date);
-            currentTime.setHours(START_HOUR, 0, 0, 0);
-
-            const endOfDay = new Date(date);
-            endOfDay.setHours(END_HOUR, 0, 0, 0);
-
-            let appointmentIndex = 0;
-
-            while (currentTime < endOfDay) {
-                const slotTimeStr = currentTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                let appointment = null;
-
-                if (appointmentIndex < dayAppointments.length) {
-                    const appTime = dayAppointments[appointmentIndex].date;
-                    if (appTime.getHours() === currentTime.getHours() && appTime.getMinutes() === currentTime.getMinutes()) {
-                        appointment = dayAppointments[appointmentIndex];
-                    }
-                }
-
-                if (appointment) {
-                    const service = state.services.find(s => s.id === appointment.serviceId);
-                    const client = state.clients.find(c => c.id === appointment.clientId);
-                    const professional = state.professionals.find(p => p.id === appointment.professionalId);
-                    const duration = service?.duration || SLOT_DURATION_MINUTES;
-                    const numSlots = Math.ceil(duration / SLOT_DURATION_MINUTES);
+            const backgroundSlots = document.createDocumentFragment();
+            for (let h = START_HOUR; h < END_HOUR; h++) {
+                for (let m = 0; m < 60; m += SLOT_DURATION_MINUTES) {
+                    const slotTime = new Date(date);
+                    slotTime.setHours(h, m, 0, 0);
+                    const slotTimeStr = slotTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
                     const el = document.createElement('div');
-                    el.className = 'relative flex items-start p-2 border-l-4 border-pink-500 bg-pink-50 rounded-r-lg';
-                    el.style.height = `${numSlots * 2.5}rem`; // 2.5rem per slot height approx
-                    el.innerHTML = `
-                        <div class="text-xs font-bold text-gray-600 w-12">${slotTimeStr}</div>
-                        <div class="pl-2">
-                            <p class="font-semibold text-sm text-gray-800">${client?.name || 'Cliente não encontrado'}</p>
-                            <p class="text-xs text-gray-600">${service?.name || 'Serviço não encontrado'}</p>
-                            <p class="text-xs text-gray-500">com ${professional?.name || 'Profissional não encontrado'}</p>
-                        </div>
-                    `;
-                    dailyViewTimeSlots.appendChild(el);
-
-                    currentTime.setMinutes(currentTime.getMinutes() + (numSlots * SLOT_DURATION_MINUTES));
-                    appointmentIndex++;
-                } else {
-                    const el = document.createElement('div');
-                    el.className = 'flex items-start p-2 border-l-4 border-gray-200 hover:bg-gray-100 cursor-pointer';
-                    el.style.height = '2.5rem';
+                    el.className = 'flex items-start p-2 border-t border-gray-100 hover:bg-gray-50 cursor-pointer';
+                    el.style.height = `${SLOT_HEIGHT_REM}rem`;
                     el.dataset.date = dateString;
                     el.dataset.time = slotTimeStr;
                     el.innerHTML = `
                         <div class="text-xs font-bold text-gray-400 w-12">${slotTimeStr}</div>
-                        <div class="pl-2 text-xs text-gray-400">Horário vago</div>
+                        <div class="pl-2 text-xs text-gray-400"></div>
                     `;
                     el.onclick = () => {
                         openAppointmentModal(el.dataset.date);
                         document.getElementById('appointmentTime').value = el.dataset.time;
                     };
-                    dailyViewTimeSlots.appendChild(el);
-                    currentTime.setMinutes(currentTime.getMinutes() + SLOT_DURATION_MINUTES);
+                    backgroundSlots.appendChild(el);
                 }
             }
+            dailyViewTimeSlots.appendChild(backgroundSlots);
+
+            const overlapGroups = [];
+            dayAppointments.forEach(app => {
+                let placed = false;
+                for (const group of overlapGroups) {
+                    const lastAppInGroup = group[group.length - 1];
+                    const service = state.services.find(s => s.id === lastAppInGroup.serviceId);
+                    const duration = service?.duration || 0;
+                    const lastAppEndTime = new Date(lastAppInGroup.date.getTime() + duration * 60000);
+                    if (app.date >= lastAppEndTime) {
+                        group.push(app);
+                        placed = true;
+                        break;
+                    }
+                }
+                if (!placed) {
+                    overlapGroups.push([app]);
+                }
+            });
+
+            dayAppointments.forEach(app => {
+                const service = state.services.find(s => s.id === app.serviceId);
+                const client = state.clients.find(c => c.id === app.clientId);
+                const professional = state.professionals.find(p => p.id === app.professionalId);
+                const duration = service?.duration || SLOT_DURATION_MINUTES;
+                
+                const startMinutes = (app.date.getHours() * 60 + app.date.getMinutes()) - (START_HOUR * 60);
+                const topPosition = (startMinutes / SLOT_DURATION_MINUTES) * SLOT_HEIGHT_REM;
+                const height = (duration / SLOT_DURATION_MINUTES) * SLOT_HEIGHT_REM;
+                
+                let groupIndex = -1;
+                let totalInGroup = 0;
+                for(let i=0; i<overlapGroups.length; i++) {
+                    const foundIndex = overlapGroups[i].findIndex(a => a.id === app.id);
+                    if (foundIndex !== -1) {
+                        groupIndex = i;
+                        totalInGroup = overlapGroups.length;
+                        break;
+                    }
+                }
+
+                const width = 100 / totalInGroup;
+                const left = groupIndex * width;
+                
+                const el = document.createElement('div');
+                el.className = 'absolute flex flex-col p-2 border-l-4 border-pink-500 bg-pink-100 rounded-r-lg overflow-hidden';
+                el.style.top = `${topPosition}rem`;
+                el.style.height = `${height}rem`;
+                el.style.left = `calc(${left}% + 3.5rem)`; // 3.5rem is approx width of time column
+                el.style.width = `calc(${width}% - 3.5rem)`;
+
+                el.innerHTML = `
+                    <p class="font-semibold text-xs text-pink-900 truncate">${client?.name || ''}</p>
+                    <p class="text-xs text-pink-700 truncate">${service?.name || ''}</p>
+                    <p class="text-xs text-pink-600 truncate">${professional?.name || ''}</p>
+                `;
+                dailyViewTimeSlots.appendChild(el);
+            });
         }
         
         function renderDashboard(agendamentosHojeEl, faturamentoHojeEl, totalClientesEl, totalServicosEl, proximosAgendamentosEl) {
@@ -729,7 +752,6 @@
                     dayEl.classList.add('day-selected');
                     state.selectedDate = dayEl.dataset.date;
                     renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, state.selectedDate, openAppointmentModal);
-                    // Switch to daily view automatically
                     dayViewBtn.click();
                 }
             });
