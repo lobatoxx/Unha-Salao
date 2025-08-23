@@ -188,6 +188,20 @@
             </div>
         </div>
     </div>
+    <div id="observationModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
+            <h3 class="text-lg font-bold text-center mb-4">Adicionar Observação</h3>
+            <form id="observationForm">
+                <input type="hidden" id="observationAppointmentId">
+                <textarea id="observationText" rows="4" class="w-full p-2 border rounded-lg" placeholder="Digite uma observação sobre o atendimento, material usado, etc."></textarea>
+                <div class="mt-4 flex flex-col gap-2">
+                    <button type="submit" class="w-full bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600">Salvar Faturamento</button>
+                    <button type="button" id="invoiceWithoutObservationBtn" class="w-full bg-gray-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-600">Faturar sem Observação</button>
+                    <button type="button" id="cancelObservationBtn" class="w-full bg-gray-200 text-gray-700 px-4 py-2 mt-2 rounded-lg font-semibold hover:bg-gray-300">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
     <div id="whatsappMessageModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
             <div class="flex justify-between items-center mb-4">
@@ -274,6 +288,10 @@
                     <select id="appointmentClient" class="w-full px-4 py-2 border rounded-lg" required></select>
                     <select id="appointmentProfessional" class="w-full px-4 py-2 border rounded-lg" required></select>
                     <select id="appointmentService" class="w-full px-4 py-2 border rounded-lg" required></select>
+                </div>
+                <div id="appointmentObservationDisplay" class="hidden mt-4 p-2 bg-gray-100 rounded-lg">
+                    <h4 class="text-sm font-bold text-gray-700">Observações:</h4>
+                    <p id="appointmentObservationText" class="text-sm text-gray-600"></p>
                 </div>
                 <div id="editAppointmentActions" class="hidden mt-6 flex justify-between items-center gap-3">
                      <button type="button" id="cancelAppointmentBtn" class="bg-gray-500 text-white px-3 py-2 text-sm rounded-lg font-semibold hover:bg-gray-600">Cancelar Atendimento</button>
@@ -882,6 +900,10 @@
             const newAppointmentChoiceBtn = document.getElementById('newAppointmentChoiceBtn');
             const blockTimeChoiceBtn = document.getElementById('blockTimeChoiceBtn');
             const cancelActionChoiceBtn = document.getElementById('cancelActionChoiceBtn');
+            const observationModal = document.getElementById('observationModal');
+            const observationForm = document.getElementById('observationForm');
+            const invoiceWithoutObservationBtn = document.getElementById('invoiceWithoutObservationBtn');
+            const cancelObservationBtn = document.getElementById('cancelObservationBtn');
             const confirmModal = document.getElementById('confirmModal');
             const confirmModalOk = document.getElementById('confirmModalOk');
             const confirmModalCancel = document.getElementById('confirmModalCancel');
@@ -1026,7 +1048,8 @@
                 appointmentDate.value = date;
                 deleteAppointmentBtn.classList.add('hidden');
                 editAppointmentActions.classList.add('hidden');
-                
+                document.getElementById('appointmentObservationDisplay').classList.add('hidden');
+
                 const clientSelect = document.getElementById('appointmentClient');
                 clientSelect.innerHTML = '<option value="">Selecione um cliente</option>';
                 state.clients.forEach(c => clientSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`);
@@ -1049,6 +1072,10 @@
 
                     if (app.status === 'agendado') {
                         editAppointmentActions.classList.remove('hidden');
+                    }
+                    if (app.observation) {
+                        document.getElementById('appointmentObservationText').textContent = app.observation;
+                        document.getElementById('appointmentObservationDisplay').classList.remove('hidden');
                     }
                 } else {
                     appointmentModalTitle.textContent = 'Novo Agendamento';
@@ -1094,15 +1121,47 @@
                 });
             });
 
-            const updateAppointmentStatus = async (status, id) => {
+            const updateAppointmentStatus = async (status, id, observation = null) => {
                 if (!id) return;
                 try {
-                    await updateDoc(doc(db, 'appointments', id), { status });
+                    const dataToUpdate = { status };
+                    if (observation) {
+                        dataToUpdate.observation = observation;
+                    }
+                    await updateDoc(doc(db, 'appointments', id), dataToUpdate);
                     addAppointmentModal.classList.add('hidden');
+                    observationModal.classList.add('hidden');
                 } catch(err) { console.error(err); }
             };
-            invoiceAppointmentBtn.addEventListener('click', () => updateAppointmentStatus('faturado', appointmentIdToEdit.value));
-            cancelAppointmentBtn.addEventListener('click', () => updateAppointmentStatus('cancelado', appointmentIdToEdit.value));
+
+            function openObservationModal(appointmentId) {
+                document.getElementById('observationAppointmentId').value = appointmentId;
+                document.getElementById('observationText').value = '';
+                addAppointmentModal.classList.add('hidden');
+                reminderModal.classList.add('hidden');
+                observationModal.classList.remove('hidden');
+            }
+
+            invoiceAppointmentBtn.addEventListener('click', () => openObservationModal(appointmentIdToEdit.value));
+            reminderInvoiceBtn.addEventListener('click', (e) => openObservationModal(e.target.dataset.id));
+            
+            observationForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const id = document.getElementById('observationAppointmentId').value;
+                const text = document.getElementById('observationText').value;
+                updateAppointmentStatus('faturado', id, text);
+            });
+            invoiceWithoutObservationBtn.addEventListener('click', () => {
+                const id = document.getElementById('observationAppointmentId').value;
+                updateAppointmentStatus('faturado', id);
+            });
+            cancelObservationBtn.addEventListener('click', () => observationModal.classList.add('hidden'));
+
+            cancelAppointmentBtn.addEventListener('click', () => {
+                showConfirmModal('Tem certeza que deseja cancelar este atendimento?', () => {
+                     updateAppointmentStatus('cancelado', appointmentIdToEdit.value)
+                });
+            });
 
             function openBlockTimeModal(blockId = null) {
                 blockTimeForm.reset();
@@ -1259,10 +1318,6 @@
             }
 
             closeReminderModalBtn.addEventListener('click', () => reminderModal.classList.add('hidden'));
-            reminderInvoiceBtn.addEventListener('click', (e) => {
-                updateAppointmentStatus('faturado', e.target.dataset.id);
-                reminderModal.classList.add('hidden');
-            });
             reminderRescheduleBtn.addEventListener('click', (e) => {
                 const appId = e.target.dataset.id;
                 const app = state.appointments.find(a => a.id === appId);
@@ -1280,7 +1335,7 @@
                     if (!service) continue;
 
                     const endTime = new Date(app.date.getTime() + service.duration * 60000);
-                    const reminderTime = new Date(endTime.getTime() + 10 * 60000); // 10 minutes after end
+                    const reminderTime = new Date(endTime.getTime() + 10 * 60000); 
                     
                     if (now > reminderTime) {
                         showReminderModal(app);
