@@ -287,11 +287,12 @@
                     <input type="time" id="appointmentTime" class="w-full px-4 py-2 border rounded-lg" required>
                     <select id="appointmentClient" class="w-full px-4 py-2 border rounded-lg" required></select>
                     <select id="appointmentProfessional" class="w-full px-4 py-2 border rounded-lg" required></select>
-                    <select id="appointmentService" class="w-full px-4 py-2 border rounded-lg" required></select>
+                    <select id="appointmentService" class="w-full px-4 py-2 border rounded-lg" required>
+                    </select>
                 </div>
                 <div id="appointmentObservationDisplay" class="hidden mt-4 p-2 bg-gray-100 rounded-lg">
                     <h4 class="text-sm font-bold text-gray-700">Observações:</h4>
-                    <p id="appointmentObservationText" class="text-sm text-gray-600"></p>
+                    <p id="appointmentObservationText" class="text-sm text-gray-600 whitespace-pre-wrap"></p>
                 </div>
                 <div id="editAppointmentActions" class="hidden mt-6 flex justify-between items-center gap-3">
                      <button type="button" id="cancelAppointmentBtn" class="bg-gray-500 text-white px-3 py-2 text-sm rounded-lg font-semibold hover:bg-gray-600">Cancelar Atendimento</button>
@@ -376,13 +377,13 @@
 
         
         const firebaseConfig = {
-          apiKey: "AIzaSyDUJBdk2K5n9645h7FlC8xVTWk1BHjY8Q0",
-          authDomain: "mi-galvao.firebaseapp.com",
-          projectId: "mi-galvao",
-          storageBucket: "mi-galvao.firebasestorage.app",
-          messagingSenderId: "791002859648",
-          appId: "1:791002859648:web:5e9a2ba629efd2516efe65",
-          measurementId: "G-ELHH1TQ32R"
+          apiKey: import.meta.env.VITE_API_KEY,
+          authDomain: import.meta.env.VITE_AUTH_DOMAIN,
+          projectId: import.meta.env.VITE_PROJECT_ID,
+          storageBucket: import.meta.env.VITE_STORAGE_BUCKET,
+          messagingSenderId: import.meta.env.VITE_MESSAGING_SENDER_ID,
+          appId: import.meta.env.VITE_APP_ID,
+          measurementId: import.meta.env.VITE_MEASUREMENT_ID
         };
         
         const app = initializeApp(firebaseConfig);
@@ -410,6 +411,11 @@
         let unsubscribes = [];
         let reminderInterval = null;
         
+        // ... (Todas as outras funções como renderServices, renderProfessionals, etc., permanecem inalteradas) ...
+
+        // Função principal `main()` e as demais funções auxiliares serão listadas após as modificações principais.
+        // A lógica completa está abaixo.
+
         function renderServices(servicesList) {
             if (!servicesList) return;
             servicesList.innerHTML = '';
@@ -653,7 +659,7 @@
 
                 if(isBlock) {
                     el.innerHTML = `
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-2 pointer-events-none">
                             <i class="fas fa-lock text-gray-600 text-xs"></i>
                             <div>
                                 <p class="font-semibold text-xs text-gray-800 truncate">${app.reason || 'Bloqueado'}</p>
@@ -664,11 +670,11 @@
                 } else {
                     el.innerHTML = `
                         <div class="flex items-center">
-                            <p class="font-semibold text-xs text-pink-900 truncate">${client?.name || ''}</p>
+                            <p class="font-semibold text-xs text-pink-900 truncate pointer-events-none">${client?.name || ''}</p>
                             <button class="whatsapp-btn text-green-500 ml-2 text-xs flex-shrink-0" data-id="${client?.id}"><i class="fab fa-whatsapp"></i></button>
                         </div>
-                        <p class="text-xs text-pink-700 truncate">${service?.name || ''}</p>
-                        <p class="text-xs text-pink-600 truncate">${professional?.name || ''}</p>
+                        <p class="text-xs text-pink-700 truncate pointer-events-none">${service?.name || ''}</p>
+                        <p class="text-xs text-pink-600 truncate pointer-events-none">${professional?.name || ''}</p>
                         ${statusIcon}
                     `;
                 }
@@ -1136,7 +1142,7 @@
 
             function openObservationModal(appointmentId) {
                 document.getElementById('observationAppointmentId').value = appointmentId;
-                document.getElementById('observationText').value = '';
+                document.getElementById('observationForm').reset();
                 addAppointmentModal.classList.add('hidden');
                 reminderModal.classList.add('hidden');
                 observationModal.classList.remove('hidden');
