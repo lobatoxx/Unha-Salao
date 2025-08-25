@@ -170,25 +170,24 @@
                 <button data-page="financeiroPage" class="nav-btn text-center text-gray-400"><i class="fas fa-chart-pie text-xl"></i><p class="text-xs">Financeiro</p></button>
             </div>
         </footer>
-
-        <div id="reminderModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
-                <div class="flex items-start gap-3">
-                    <div class="text-pink-500 mt-1 text-xl"><i class="fas fa-clock"></i></div>
-                    <div class="flex-1">
-                        <h4 class="font-bold text-gray-800">Finalizar Atendimento</h4>
-                        <p id="reminderText" class="text-sm text-gray-600 mt-1"></p>
-                        <div class="flex gap-2 mt-4">
-                            <button id="reminderInvoiceBtn" class="w-full bg-green-500 text-white px-3 py-2 text-sm rounded-md font-semibold hover:bg-green-600">Faturar</button>
-                            <button id="reminderRescheduleBtn" class="w-full bg-blue-500 text-white px-3 py-2 text-sm rounded-md font-semibold hover:bg-blue-600">Reagendar</button>
-                        </div>
+    </div>
+    
+    <div id="reminderModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
+            <div class="flex items-start gap-3">
+                <div class="text-pink-500 mt-1 text-xl"><i class="fas fa-clock"></i></div>
+                <div class="flex-1">
+                    <h4 class="font-bold text-gray-800">Finalizar Atendimento</h4>
+                    <p id="reminderText" class="text-sm text-gray-600 mt-1"></p>
+                    <div class="flex gap-2 mt-4">
+                        <button id="reminderInvoiceBtn" class="w-full bg-green-500 text-white px-3 py-2 text-sm rounded-md font-semibold hover:bg-green-600">Faturar</button>
+                        <button id="reminderRescheduleBtn" class="w-full bg-blue-500 text-white px-3 py-2 text-sm rounded-md font-semibold hover:bg-blue-600">Reagendar</button>
                     </div>
-                    <button id="closeReminderModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
                 </div>
+                <button id="closeReminderModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
             </div>
         </div>
     </div>
-    
     <div id="observationModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
             <h3 class="text-lg font-bold text-center mb-4">Adicionar Observação</h3>
@@ -288,12 +287,11 @@
                     <input type="time" id="appointmentTime" class="w-full px-4 py-2 border rounded-lg" required>
                     <select id="appointmentClient" class="w-full px-4 py-2 border rounded-lg" required></select>
                     <select id="appointmentProfessional" class="w-full px-4 py-2 border rounded-lg" required></select>
-                    <select id="appointmentService" class="w-full px-4 py-2 border rounded-lg" required>
-                    </select>
+                    <select id="appointmentService" class="w-full px-4 py-2 border rounded-lg" required></select>
                 </div>
                 <div id="appointmentObservationDisplay" class="hidden mt-4 p-2 bg-gray-100 rounded-lg">
                     <h4 class="text-sm font-bold text-gray-700">Observações:</h4>
-                    <p id="appointmentObservationText" class="text-sm text-gray-600 whitespace-pre-wrap"></p>
+                    <p id="appointmentObservationText" class="text-sm text-gray-600"></p>
                 </div>
                 <div id="editAppointmentActions" class="hidden mt-6 flex justify-between items-center gap-3">
                      <button type="button" id="cancelAppointmentBtn" class="bg-gray-500 text-white px-3 py-2 text-sm rounded-lg font-semibold hover:bg-gray-600">Cancelar Atendimento</button>
@@ -378,13 +376,13 @@
 
         
         const firebaseConfig = {
-          apiKey: import.meta.env.VITE_API_KEY,
-          authDomain: import.meta.env.VITE_AUTH_DOMAIN,
-          projectId: import.meta.env.VITE_PROJECT_ID,
-          storageBucket: import.meta.env.VITE_STORAGE_BUCKET,
-          messagingSenderId: import.meta.env.VITE_MESSAGING_SENDER_ID,
-          appId: import.meta.env.VITE_APP_ID,
-          measurementId: import.meta.env.VITE_MEASUREMENT_ID
+          apiKey: "AIzaSyDUJBdk2K5n9645h7FlC8xVTWk1BHjY8Q0",
+          authDomain: "mi-galvao.firebaseapp.com",
+          projectId: "mi-galvao",
+          storageBucket: "mi-galvao.firebasestorage.app",
+          messagingSenderId: "791002859648",
+          appId: "1:791002859648:web:5e9a2ba629efd2516efe65",
+          measurementId: "G-ELHH1TQ32R"
         };
         
         const app = initializeApp(firebaseConfig);
@@ -411,10 +409,6 @@
 
         let unsubscribes = [];
         let reminderInterval = null;
-        
-        // ... (Todas as outras funções como renderServices, etc., permanecem inalteradas, exceto as que precisam de ajuste) ...
-
-        // A PARTIR DAQUI ESTÃO AS FUNÇÕES COMPLETAS E ATUALIZADAS
         
         function renderServices(servicesList) {
             if (!servicesList) return;
@@ -659,7 +653,7 @@
 
                 if(isBlock) {
                     el.innerHTML = `
-                        <div class="pointer-events-none flex items-center gap-2">
+                        <div class="flex items-center gap-2">
                             <i class="fas fa-lock text-gray-600 text-xs"></i>
                             <div>
                                 <p class="font-semibold text-xs text-gray-800 truncate">${app.reason || 'Bloqueado'}</p>
@@ -669,14 +663,12 @@
                     `;
                 } else {
                     el.innerHTML = `
-                        <div class="pointer-events-none">
-                            <div class="flex items-center">
-                                <p class="font-semibold text-xs text-pink-900 truncate">${client?.name || ''}</p>
-                                <button class="whatsapp-btn text-green-500 ml-2 text-xs flex-shrink-0" data-id="${client?.id}"><i class="fab fa-whatsapp"></i></button>
-                            </div>
-                            <p class="text-xs text-pink-700 truncate">${service?.name || ''}</p>
-                            <p class="text-xs text-pink-600 truncate">${professional?.name || ''}</p>
+                        <div class="flex items-center">
+                            <p class="font-semibold text-xs text-pink-900 truncate">${client?.name || ''}</p>
+                            <button class="whatsapp-btn text-green-500 ml-2 text-xs flex-shrink-0" data-id="${client?.id}"><i class="fab fa-whatsapp"></i></button>
                         </div>
+                        <p class="text-xs text-pink-700 truncate">${service?.name || ''}</p>
+                        <p class="text-xs text-pink-600 truncate">${professional?.name || ''}</p>
                         ${statusIcon}
                     `;
                 }
@@ -1144,7 +1136,7 @@
 
             function openObservationModal(appointmentId) {
                 document.getElementById('observationAppointmentId').value = appointmentId;
-                observationForm.reset();
+                document.getElementById('observationText').value = '';
                 addAppointmentModal.classList.add('hidden');
                 reminderModal.classList.add('hidden');
                 observationModal.classList.remove('hidden');
@@ -1574,3 +1566,4 @@
     </script>
     </body>
 </html>
+
