@@ -411,11 +411,10 @@
         let unsubscribes = [];
         let reminderInterval = null;
         
-        // ... (Todas as outras funções como renderServices, renderProfessionals, etc., permanecem inalteradas) ...
+        // ... (Todas as outras funções como renderServices, etc., permanecem inalteradas, exceto as que precisam de ajuste) ...
 
-        // Função principal `main()` e as demais funções auxiliares serão listadas após as modificações principais.
-        // A lógica completa está abaixo.
-
+        // A PARTIR DAQUI ESTÃO AS FUNÇÕES COMPLETAS E ATUALIZADAS
+        
         function renderServices(servicesList) {
             if (!servicesList) return;
             servicesList.innerHTML = '';
@@ -659,7 +658,7 @@
 
                 if(isBlock) {
                     el.innerHTML = `
-                        <div class="flex items-center gap-2 pointer-events-none">
+                        <div class="flex items-center gap-2">
                             <i class="fas fa-lock text-gray-600 text-xs"></i>
                             <div>
                                 <p class="font-semibold text-xs text-gray-800 truncate">${app.reason || 'Bloqueado'}</p>
@@ -670,11 +669,11 @@
                 } else {
                     el.innerHTML = `
                         <div class="flex items-center">
-                            <p class="font-semibold text-xs text-pink-900 truncate pointer-events-none">${client?.name || ''}</p>
+                            <p class="font-semibold text-xs text-pink-900 truncate">${client?.name || ''}</p>
                             <button class="whatsapp-btn text-green-500 ml-2 text-xs flex-shrink-0" data-id="${client?.id}"><i class="fab fa-whatsapp"></i></button>
                         </div>
-                        <p class="text-xs text-pink-700 truncate pointer-events-none">${service?.name || ''}</p>
-                        <p class="text-xs text-pink-600 truncate pointer-events-none">${professional?.name || ''}</p>
+                        <p class="text-xs text-pink-700 truncate">${service?.name || ''}</p>
+                        <p class="text-xs text-pink-600 truncate">${professional?.name || ''}</p>
                         ${statusIcon}
                     `;
                 }
@@ -1142,7 +1141,7 @@
 
             function openObservationModal(appointmentId) {
                 document.getElementById('observationAppointmentId').value = appointmentId;
-                document.getElementById('observationForm').reset();
+                observationForm.reset();
                 addAppointmentModal.classList.add('hidden');
                 reminderModal.classList.add('hidden');
                 observationModal.classList.remove('hidden');
