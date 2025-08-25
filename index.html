@@ -26,12 +26,7 @@
     </style>
 </head>
 <body class="bg-gray-50">
-    <p style="padding: 1rem; font-family: monospace; background: #eee; border-bottom: 2px solid red;">
-        <strong>Chave de API em uso:</strong> <span id="debug-key"></span>
-    </p>
-    <script type="module">
-        document.getElementById('debug-key').textContent = import.meta.env.VITE_API_KEY || 'NÃO ENCONTRADA';
-    </script>
+
     <div id="loadingOverlay" class="absolute top-0 left-0 w-full h-full bg-white bg-opacity-75 z-50 flex flex-col items-center justify-center">
         <i class="fas fa-spinner fa-spin text-pink-500 text-4xl"></i>
         <p class="mt-4 text-gray-600">Carregando...</p>
@@ -182,7 +177,7 @@
         import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, query, addDoc, doc, deleteDoc, updateDoc, Timestamp, getDocs, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // CÓDIGO PRINCIPAL DO APP (o restante é idêntico ao anterior)
+        // CÓDIGO JS SEGURO
         const firebaseConfig = {
           apiKey: import.meta.env.VITE_API_KEY,
           authDomain: import.meta.env.VITE_AUTH_DOMAIN,
@@ -197,7 +192,8 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // ... todo o resto do seu código JavaScript permanece aqui, inalterado ...
+        // ... TODO O RESTANTE DO SEU CÓDIGO JAVASCRIPT PERMANECE AQUI, INALTERADO ...
     </script>
-</body>
+
+    </body>
 </html>
