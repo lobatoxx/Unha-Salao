@@ -170,24 +170,23 @@
                 <button data-page="financeiroPage" class="nav-btn text-center text-gray-400"><i class="fas fa-chart-pie text-xl"></i><p class="text-xs">Financeiro</p></button>
             </div>
         </footer>
-    </div>
-    
-    <div id="reminderModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
-            <div class="flex items-start gap-3">
-                <div class="text-pink-500 mt-1 text-xl"><i class="fas fa-clock"></i></div>
-                <div class="flex-1">
-                    <h4 class="font-bold text-gray-800">Finalizar Atendimento</h4>
-                    <p id="reminderText" class="text-sm text-gray-600 mt-1"></p>
-                    <div class="flex gap-2 mt-4">
-                        <button id="reminderInvoiceBtn" class="w-full bg-green-500 text-white px-3 py-2 text-sm rounded-md font-semibold hover:bg-green-600">Faturar</button>
-                        <button id="reminderRescheduleBtn" class="w-full bg-blue-500 text-white px-3 py-2 text-sm rounded-md font-semibold hover:bg-blue-600">Reagendar</button>
+
+        <div id="reminderModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
+                <div class="flex items-start gap-3">
+                    <div class="text-pink-500 mt-1 text-xl"><i class="fas fa-clock"></i></div>
+                    <div class="flex-1">
+                        <h4 class="font-bold text-gray-800">Finalizar Atendimento</h4>
+                        <p id="reminderText" class="text-sm text-gray-600 mt-1"></p>
+                        <div class="flex gap-2 mt-4">
+                            <button id="reminderInvoiceBtn" class="w-full bg-green-500 text-white px-3 py-2 text-sm rounded-md font-semibold hover:bg-green-600">Faturar</button>
+                            <button id="reminderRescheduleBtn" class="w-full bg-blue-500 text-white px-3 py-2 text-sm rounded-md font-semibold hover:bg-blue-600">Reagendar</button>
+                        </div>
                     </div>
+                    <button id="closeReminderModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
                 </div>
-                <button id="closeReminderModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
             </div>
         </div>
-    </div>
     <div id="observationModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
             <h3 class="text-lg font-bold text-center mb-4">Adicionar Observação</h3>
@@ -287,12 +286,11 @@
                     <input type="time" id="appointmentTime" class="w-full px-4 py-2 border rounded-lg" required>
                     <select id="appointmentClient" class="w-full px-4 py-2 border rounded-lg" required></select>
                     <select id="appointmentProfessional" class="w-full px-4 py-2 border rounded-lg" required></select>
-                    <select id="appointmentService" class="w-full px-4 py-2 border rounded-lg" required>
-                    </select>
+                    <select id="appointmentService" class="w-full px-4 py-2 border rounded-lg" required></select>
                 </div>
                 <div id="appointmentObservationDisplay" class="hidden mt-4 p-2 bg-gray-100 rounded-lg">
                     <h4 class="text-sm font-bold text-gray-700">Observações:</h4>
-                    <p id="appointmentObservationText" class="text-sm text-gray-600 whitespace-pre-wrap"></p>
+                    <p id="appointmentObservationText" class="text-sm text-gray-600"></p>
                 </div>
                 <div id="editAppointmentActions" class="hidden mt-6 flex justify-between items-center gap-3">
                      <button type="button" id="cancelAppointmentBtn" class="bg-gray-500 text-white px-3 py-2 text-sm rounded-lg font-semibold hover:bg-gray-600">Cancelar Atendimento</button>
@@ -410,10 +408,6 @@
 
         let unsubscribes = [];
         let reminderInterval = null;
-        
-        // ... (Todas as outras funções como renderServices, etc., permanecem inalteradas, exceto as que precisam de ajuste) ...
-
-        // A PARTIR DAQUI ESTÃO AS FUNÇÕES COMPLETAS E ATUALIZADAS
         
         function renderServices(servicesList) {
             if (!servicesList) return;
@@ -931,6 +925,10 @@
             const reminderInvoiceBtn = document.getElementById('reminderInvoiceBtn');
             const reminderRescheduleBtn = document.getElementById('reminderRescheduleBtn');
             const closeReminderModalBtn = document.getElementById('closeReminderModalBtn');
+            const appointmentObservationDisplay = document.getElementById('appointmentObservationDisplay');
+            const appointmentObservationText = document.getElementById('appointmentObservationText');
+            const observationAppointmentId = document.getElementById('observationAppointmentId');
+            const observationText = document.getElementById('observationText');
 
             registerButton.addEventListener('click', async () => {
                 const email = emailInput.value;
@@ -1139,14 +1137,6 @@
                 } catch(err) { console.error(err); }
             };
 
-            function openObservationModal(appointmentId) {
-                document.getElementById('observationAppointmentId').value = appointmentId;
-                observationForm.reset();
-                addAppointmentModal.classList.add('hidden');
-                reminderModal.classList.add('hidden');
-                observationModal.classList.remove('hidden');
-            }
-
             invoiceAppointmentBtn.addEventListener('click', () => openObservationModal(appointmentIdToEdit.value));
             reminderInvoiceBtn.addEventListener('click', (e) => openObservationModal(e.target.dataset.id));
             
@@ -1323,6 +1313,7 @@
             }
 
             closeReminderModalBtn.addEventListener('click', () => reminderModal.classList.add('hidden'));
+            reminderInvoiceBtn.addEventListener('click', (e) => openObservationModal(e.target.dataset.id));
             reminderRescheduleBtn.addEventListener('click', (e) => {
                 const appId = e.target.dataset.id;
                 const app = state.appointments.find(a => a.id === appId);
