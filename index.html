@@ -10,6 +10,7 @@
     <link rel="manifest" href="/manifest.json">
 
     <script src="https://cdn-tailwindcss.vercel.app/"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/1.5.3/signature_pad.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -23,6 +24,7 @@
         .calendar-day { aspect-ratio: 1 / 1; }
         .day-selected { background-color: #fbcfe8; /* pink-200 */ }
         .view-toggle button.active { background-color: #ec4899; color: white; }
+        #signature-pad { border: 1px solid #e2e8f0; border-radius: 0.5rem; touch-action: none; }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -189,6 +191,89 @@
         </div>
     </div>
     
+    <div id="anamnesisModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6 h-full overflow-y-auto no-scrollbar">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold">Ficha de Anamnese</h3>
+                <button id="closeAnamnesisModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <form id="anamnesisForm">
+                <input type="hidden" id="anamnesisAppointmentId">
+                <input type="hidden" id="anamnesisClientId">
+
+                <div class="space-y-4">
+                    <h4 class="font-bold border-b pb-2">Identificação do Cliente</h4>
+                    <div>
+                        <label class="text-sm">Nome Completo</label>
+                        <p id="anamnesisClientName" class="p-2 bg-gray-100 rounded"></p>
+                    </div>
+                    <div>
+                        <label class="text-sm">Telefone/WhatsApp</label>
+                        <p id="anamnesisClientPhone" class="p-2 bg-gray-100 rounded"></p>
+                    </div>
+
+                    <h4 class="font-bold border-b pb-2 mt-6">Histórico de Saúde</h4>
+                    <div class="text-xs text-gray-500">As informações são confidenciais.</div>
+                    
+                    <div class="space-y-3">
+                        <p class="text-sm">1. Possui alergia a esmaltes, removedores ou outros cosméticos?</p>
+                        <div class="flex gap-4">
+                            <label><input type="radio" name="alergia" value="nao" checked> Não</label>
+                            <label><input type="radio" name="alergia" value="sim"> Sim</label>
+                        </div>
+                        <input type="text" name="alergia_qual" class="w-full p-2 border rounded-lg text-sm" placeholder="Qual?">
+                    </div>
+                    <div class="space-y-3">
+                        <p class="text-sm">2. Possui doenças de pele nas mãos ou unhas (micose, psoríase, etc.)?</p>
+                        <div class="flex gap-4">
+                            <label><input type="radio" name="doenca_pele" value="nao" checked> Não</label>
+                            <label><input type="radio" name="doenca_pele" value="sim"> Sim</label>
+                        </div>
+                        <input type="text" name="doenca_pele_qual" class="w-full p-2 border rounded-lg text-sm" placeholder="Quais?">
+                    </div>
+                     <div class="space-y-3">
+                        <p class="text-sm">3. Faz uso de anticoagulantes ou possui problemas de coagulação?</p>
+                        <div class="flex gap-4">
+                            <label><input type="radio" name="coagulacao" value="nao" checked> Não</label>
+                            <label><input type="radio" name="coagulacao" value="sim"> Sim</label>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <p class="text-sm">4. Possui diabetes?</p>
+                        <div class="flex gap-4">
+                            <label><input type="radio" name="diabetes" value="nao" checked> Não</label>
+                            <label><input type="radio" name="diabetes" value="sim"> Sim</label>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <p class="text-sm">5. Já teve infecção nas unhas após procedimento estético?</p>
+                        <div class="flex gap-4">
+                            <label><input type="radio" name="infeccao" value="nao" checked> Não</label>
+                            <label><input type="radio" name="infeccao" value="sim"> Sim</label>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <p class="text-sm">6. Está gestante?</p>
+                        <div class="flex gap-4">
+                            <label><input type="radio" name="gestante" value="nao" checked> Não</label>
+                            <label><input type="radio" name="gestante" value="sim"> Sim</label>
+                        </div>
+                    </div>
+
+                    <h4 class="font-bold border-b pb-2 mt-6">Assinatura do Cliente</h4>
+                    <div class="relative w-full h-40">
+                        <canvas id="signature-pad" class="w-full h-full"></canvas>
+                    </div>
+                    <button type="button" id="clearSignatureBtn" class="text-sm text-blue-500 hover:underline">Limpar Assinatura</button>
+                </div>
+                
+                <div class="mt-6 flex flex-col gap-3">
+                    <button type="submit" class="w-full bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600">Salvar Ficha</button>
+                    <button type="button" class="w-full bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300" onclick="document.getElementById('anamnesisModal').classList.add('hidden')">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
     <div id="observationModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
             <h3 class="text-lg font-bold text-center mb-4">Adicionar Observação</h3>
@@ -295,6 +380,9 @@
                     <h4 class="text-sm font-bold text-gray-700">Observações:</h4>
                     <p id="appointmentObservationText" class="text-sm text-gray-600 whitespace-pre-wrap"></p>
                 </div>
+                <div id="startAppointmentAction" class="hidden mt-6">
+                    <button type="button" id="startAppointmentBtn" class="w-full bg-green-500 text-white px-3 py-2 text-sm rounded-lg font-semibold hover:bg-green-600">Iniciar Atendimento</button>
+                </div>
                 <div id="editAppointmentActions" class="hidden mt-6 flex justify-between items-center gap-3">
                      <button type="button" id="cancelAppointmentBtn" class="bg-gray-500 text-white px-3 py-2 text-sm rounded-lg font-semibold hover:bg-gray-600">Cancelar Atendimento</button>
                      <button type="button" id="invoiceAppointmentBtn" class="bg-green-500 text-white px-3 py-2 text-sm rounded-lg font-semibold hover:bg-green-600">Faturar</button>
@@ -374,7 +462,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, query, addDoc, doc, deleteDoc, updateDoc, Timestamp, getDocs, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, query, addDoc, doc, deleteDoc, updateDoc, Timestamp, getDocs, where, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         
         const firebaseConfig = {
