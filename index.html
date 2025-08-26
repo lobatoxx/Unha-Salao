@@ -110,7 +110,7 @@
             <div id="agendaPage" class="page">
                 <div class="flex justify-between items-center mb-4">
                     <button id="prevMonthBtn" class="p-2 rounded-full hover:bg-gray-100"><i class="fas fa-chevron-left"></i></button>
-                    <h2 id="currentMonthYear" class="text-lg font-bold text-gray-800"></h2>
+                    <h2 id="currentMonthYear" class="text-lg font-bold text-gray-800 text-center"></h2>
                     <button id="nextMonthBtn" class="p-2 rounded-full hover:bg-gray-100"><i class="fas fa-chevron-right"></i></button>
                 </div>
 
@@ -660,12 +660,22 @@
         appointmentsForDay.appendChild(newAppointmentBtn);
         }
 
+        // --- FUNÇÃO MODIFICADA ---
         function renderCalendar(calendarDays, currentMonthYear) {
             calendarDays.innerHTML = '';
             const date = state.currentDate;
             const year = date.getFullYear();
             const month = date.getMonth();
-            currentMonthYear.textContent = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+            // Lógica para atualizar o título com base na visualização (Dia ou Mês)
+            const dailyView = document.getElementById('dailyView');
+            if (dailyView && !dailyView.classList.contains('hidden')) {
+                const selectedDateObj = new Date(state.selectedDate + 'T00:00:00');
+                currentMonthYear.textContent = selectedDateObj.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+            } else {
+                currentMonthYear.textContent = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+            }
+            
             const firstDayOfMonth = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             for (let i = 0; i < firstDayOfMonth; i++) { calendarDays.innerHTML += `<div></div>`; }
@@ -1089,6 +1099,9 @@
                 dailyView.classList.add('hidden');
                 monthViewBtn.classList.add('active');
                 dayViewBtn.classList.remove('active');
+                // --- ADIÇÃO ---
+                // Força a atualização do título para o formato de mês/ano
+                renderCalendar(calendarDays, currentMonthYear);
             });
             dayViewBtn.addEventListener('click', () => {
                 monthlyView.style.display = 'none';
@@ -1096,6 +1109,9 @@
                 monthViewBtn.classList.remove('active');
                 dayViewBtn.classList.add('active');
                 renderDailyView(dailyViewTimeSlots, dailyViewTitle, state.selectedDate, openActionChoiceModal);
+                // --- ADIÇÃO ---
+                // Força a atualização do título para o formato de dia
+                renderCalendar(calendarDays, currentMonthYear);
             });
 
             calendarDays.addEventListener('click', (e) => {
@@ -1109,8 +1125,33 @@
                 }
             });
 
-            prevMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() - 1); refreshAllViews(); });
-            nextMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() + 1); refreshAllViews(); });
+            // --- BOTÕES DE NAVEGAÇÃO MODIFICADOS ---
+            prevMonthBtn.addEventListener('click', () => {
+                if (!dailyView.classList.contains('hidden')) { // Se a visualização por dia está ativa
+                    const currentDate = new Date(state.selectedDate + 'T00:00:00');
+                    currentDate.setDate(currentDate.getDate() - 1);
+                    state.selectedDate = currentDate.toISOString().split('T')[0];
+                    state.currentDate = currentDate; // Mantém o calendário principal sincronizado
+                    refreshAllViews();
+                } else { // Se a visualização por mês está ativa
+                    state.currentDate.setMonth(state.currentDate.getMonth() - 1);
+                    refreshAllViews();
+                }
+            });
+
+            nextMonthBtn.addEventListener('click', () => {
+                if (!dailyView.classList.contains('hidden')) { // Se a visualização por dia está ativa
+                    const currentDate = new Date(state.selectedDate + 'T00:00:00');
+                    currentDate.setDate(currentDate.getDate() + 1);
+                    state.selectedDate = currentDate.toISOString().split('T')[0];
+                    state.currentDate = currentDate; // Mantém o calendário principal sincronizado
+                    refreshAllViews();
+                } else { // Se a visualização por mês está ativa
+                    state.currentDate.setMonth(state.currentDate.getMonth() + 1);
+                    refreshAllViews();
+                }
+            });
+            
             financeiroPrevMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() - 1); refreshAllViews(); });
             financeiroNextMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() + 1); refreshAllViews(); });
 
