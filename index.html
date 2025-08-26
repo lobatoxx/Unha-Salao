@@ -136,7 +136,7 @@
                 </div>
 
                 <div id="dailyView" class="hidden">
-                    <h3 id="dailyViewTitle" class="hidden font-bold text-gray-700 mb-2 text-center"></h3>
+                    <h3 id="dailyViewTitle" class="font-bold text-gray-700 mb-2 text-center"></h3>
                     <div id="dailyViewTimeSlots" class="relative"></div>
                 </div>
             </div>
@@ -653,7 +653,11 @@
                 });
             }
             // CÓDIGO CORRIGIDO
-       
+        const newAppointmentBtn = document.createElement('button');
+        newAppointmentBtn.className = 'w-full bg-pink-500 text-white py-2 mt-4 rounded-lg font-semibold hover:bg-pink-600 transition';
+        newAppointmentBtn.textContent = 'Novo Agendamento';
+        newAppointmentBtn.onclick = () => openAppointmentModal(state.selectedDate); // Correção aqui
+        appointmentsForDay.appendChild(newAppointmentBtn);
         }
 
         function renderCalendar(calendarDays, currentMonthYear) {
@@ -661,7 +665,7 @@
             const date = state.currentDate;
             const year = date.getFullYear();
             const month = date.getMonth();
-            
+            currentMonthYear.textContent = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
             const firstDayOfMonth = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             for (let i = 0; i < firstDayOfMonth; i++) { calendarDays.innerHTML += `<div></div>`; }
@@ -682,36 +686,8 @@
             }
         }
 
-        // COLE ESTA NOVA FUNÇÃO NO SEU CÓDIGO
-        function updateTopHeaderDate() {
-            const currentMonthYear = document.getElementById('currentMonthYear');
-            const dailyView = document.getElementById('dailyView');
-            const date = state.currentDate;
-
-            if (dailyView.classList.contains('hidden')) {
-                // Se estivermos na visualização de MÊS
-                currentMonthYear.textContent = date.toLocaleDateString('pt-BR', {
-                    month: 'long',
-                    year: 'numeric'
-                });
-            } else {
-                // Se estivermos na visualização de DIA
-                currentMonthYear.textContent = date.toLocaleDateString('pt-BR', {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long'
-                });
-            }
-        }
-
-
-// SUBSTITUA A FUNÇÃO ANTIGA POR ESTA
-        function renderDailyView(dailyViewTimeSlots, dailyViewTitle, openActionChoiceModal) {
-            // Usa a data principal do estado para garantir consistência
-            const date = state.currentDate;
-            const dateString = date.toISOString().split('T')[0];
-
-            // Atualiza o título inferior (que vamos esconder no próximo passo)
+        function renderDailyView(dailyViewTimeSlots, dailyViewTitle, dateString, openActionChoiceModal) {
+            const date = new Date(dateString + 'T00:00:00');
             dailyViewTitle.textContent = `Agenda para ${date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}`;
             dailyViewTimeSlots.innerHTML = '';
 
@@ -719,7 +695,6 @@
                 .filter(app => app.date && app.date.toISOString().split('T')[0] === dateString)
                 .sort((a, b) => a.date - b.date);
 
-            // O restante da função continua exatamente como estava...
             const START_HOUR = 8;
             const END_HOUR = 19;
             const SLOT_DURATION_MINUTES = 30;
@@ -743,18 +718,18 @@
                 }
             }
             dailyViewTimeSlots.appendChild(backgroundSlots);
-
+            
             dayAppointments.forEach(app => {
                 const isBlock = app.type === 'block';
                 const service = !isBlock ? state.services.find(s => s.id === app.serviceId) : null;
                 const client = !isBlock ? state.clients.find(c => c.id === app.clientId) : null;
                 const professional = state.professionals.find(p => p.id === app.professionalId);
                 const duration = isBlock ? app.duration : (service?.duration || SLOT_DURATION_MINUTES);
-
+                
                 const startMinutes = (app.date.getHours() * 60 + app.date.getMinutes()) - (START_HOUR * 60);
                 const topPosition = (startMinutes / SLOT_DURATION_MINUTES) * SLOT_HEIGHT_REM;
                 const height = (duration / SLOT_DURATION_MINUTES) * SLOT_HEIGHT_REM;
-
+                
                 const appEndTime = new Date(app.date.getTime() + duration * 60000);
                 const overlappingApps = dayAppointments.filter(otherApp => {
                     const otherIsBlock = otherApp.type === 'block';
@@ -766,10 +741,10 @@
 
                 const numColumns = overlappingApps.length;
                 const columnIndex = overlappingApps.findIndex(a => a.id === app.id);
-
+                
                 const width = 100 / numColumns;
                 const left = columnIndex * width;
-
+                
                 const el = document.createElement('div');
                 let bgColor = isBlock ? 'bg-gray-200' : 'bg-pink-100';
                 let borderColor = isBlock ? 'border-gray-500' : 'border-pink-500';
@@ -790,7 +765,7 @@
                 el.dataset.id = app.id;
 
                 let statusIcon = '';
-                    if (app.status === 'faturado') {
+                 if (app.status === 'faturado') {
                     statusIcon = `<i class="fas fa-dollar-sign text-green-600 text-xs absolute top-1 right-1 pointer-events-none"></i>`;
                 } else if (app.status === 'cancelado') {
                     statusIcon = `<i class="fas fa-ban text-red-600 text-xs absolute top-1 right-1 pointer-events-none"></i>`;
@@ -819,15 +794,11 @@
                         ${statusIcon}
                     `;
                 }
-
+                
                 dailyViewTimeSlots.appendChild(el);
             });
         }
-                
-
-
-
-
+        
         function renderDashboard(agendamentosHojeEl, faturamentoHojeEl, totalClientesEl, totalServicosEl, proximosAgendamentosEl) {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -1105,7 +1076,6 @@
             logoutButton.addEventListener('click', () => signOut(auth));
 
             const refreshAllViews = () => {
-                updateTopHeaderDate();
                 renderCalendar(calendarDays, currentMonthYear);
                 renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, state.selectedDate);
                 renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl, ganhosProfissionalMesEl);
@@ -1119,7 +1089,6 @@
                 dailyView.classList.add('hidden');
                 monthViewBtn.classList.add('active');
                 dayViewBtn.classList.remove('active');
-                updateTopHeaderDate();
             });
             dayViewBtn.addEventListener('click', () => {
                 monthlyView.style.display = 'none';
@@ -1127,7 +1096,6 @@
                 monthViewBtn.classList.remove('active');
                 dayViewBtn.classList.add('active');
                 renderDailyView(dailyViewTimeSlots, dailyViewTitle, state.selectedDate, openActionChoiceModal);
-                updateTopHeaderDate();
             });
 
             calendarDays.addEventListener('click', (e) => {
@@ -1137,36 +1105,12 @@
                     dayEl.classList.add('day-selected');
                     state.selectedDate = dayEl.dataset.date;
                     renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, state.selectedDate);
-                    dayViewBtn.click(); // Esta linha faz a mágica de abrir o dia
+                    dayViewBtn.click();
                 }
             });
 
-            // SUBSTITUA OS BLOCOS ANTIGOS POR ESTES DOIS NOVOS BLOCOS
-            prevMonthBtn.addEventListener('click', () => {
-                const dailyView = document.getElementById('dailyView');
-                if (dailyView.classList.contains('hidden')) {
-                    // Se estiver na tela de Mês, muda o mês
-                    state.currentDate.setMonth(state.currentDate.getMonth() - 1);
-                } else {
-                    // Se estiver na tela de Dia, muda o dia
-                    state.currentDate.setDate(state.currentDate.getDate() - 1);
-                    state.selectedDate = state.currentDate.toISOString().split('T')[0];
-                }
-                refreshAllViews();
-            });
-
-            nextMonthBtn.addEventListener('click', () => {
-                const dailyView = document.getElementById('dailyView');
-                if (dailyView.classList.contains('hidden')) {
-                    // Se estiver na tela de Mês, muda o mês
-                    state.currentDate.setMonth(state.currentDate.getMonth() + 1);
-                } else {
-                    // Se estiver na tela de Dia, muda o dia
-                    state.currentDate.setDate(state.currentDate.getDate() + 1);
-                    state.selectedDate = state.currentDate.toISOString().split('T')[0];
-                }
-                refreshAllViews();
-            });
+            prevMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() - 1); refreshAllViews(); });
+            nextMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() + 1); refreshAllViews(); });
             financeiroPrevMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() - 1); refreshAllViews(); });
             financeiroNextMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() + 1); refreshAllViews(); });
 
