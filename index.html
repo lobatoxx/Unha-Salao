@@ -424,6 +424,7 @@
             </form>
         </div>
     </div>
+    
     <div id="blockTimeModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-40">
         <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
              <div class="flex justify-between items-center mb-4">
@@ -464,6 +465,33 @@
             </form>
         </div>
     </div>
+
+    <div id="blockDayModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-40">
+        <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
+             <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold">Bloquear Dia Inteiro</h3>
+                <button id="closeBlockDayModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <form id="blockDayForm">
+                <div class="space-y-4">
+                    <p>Você está bloqueando o dia <strong id="blockDayDate"></strong>.</p>
+                    <div id="blockDayProfessionalAdminView">
+                        <label for="blockDayProfessional" class="text-sm font-medium text-gray-700">Selecione o profissional:</label>
+                        <select id="blockDayProfessional" class="w-full px-4 py-2 border rounded-lg" required></select>
+                    </div>
+                    <div id="blockDayProfessionalUserView" class="hidden">
+                        <label class="text-sm font-medium text-gray-700">Profissional:</label>
+                        <p id="blockDayProfessionalName" class="w-full px-4 py-2 border rounded-lg bg-gray-100"></p>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300" onclick="document.getElementById('blockDayModal').classList.add('hidden')">Cancelar</button>
+                    <button type="submit" class="bg-gray-800 text-white px-4 py-2 rounded-lg font-semibold hover:bg-black">Confirmar Bloqueio</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div id="actionChoiceModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
             <h3 class="text-lg font-bold text-center mb-4">O que deseja fazer?</h3>
@@ -652,8 +680,6 @@
                     appointmentsForDay.appendChild(el);
                 });
             }
-            // --- MODIFICAÇÃO ---
-            // O botão "Novo Agendamento" que ficava aqui foi removido.
         }
 
         function renderCalendar(calendarDays, currentMonthYear) {
@@ -1063,6 +1089,11 @@
             const clearSignatureBtn = document.getElementById('clearSignatureBtn');
             signaturePad = new SignaturePad(canvas);
 
+            // --- Seletores para o novo modal de Bloqueio de Dia ---
+            const blockDayModal = document.getElementById('blockDayModal');
+            const closeBlockDayModalBtn = document.getElementById('closeBlockDayModalBtn');
+            const blockDayForm = document.getElementById('blockDayForm');
+
             registerButton.addEventListener('click', async () => {
                 const email = emailInput.value;
                 const password = passwordInput.value;
@@ -1333,7 +1364,8 @@
                      updateAppointmentStatus('cancelado', appointmentIdToEdit.value)
                 });
             });
-
+            
+            // --- Lógica para o Modal de Bloqueio de Horário Específico ---
             function openBlockTimeModal(blockId = null) {
                 blockTimeForm.reset();
                 blockIdToEdit.value = '';
@@ -1369,48 +1401,8 @@
 
                 blockTimeModal.classList.remove('hidden');
             }
-
-            // --- MODIFICAÇÃO: Listener do botão de bloqueio agora chama a nova função ---
-            const handleBlockEntireDayClick = () => {
-                const dayHasAppointments = state.appointments.some(app => 
-                    app.date.toISOString().split('T')[0] === state.selectedDate && 
-                    app.type === 'booking' && 
-                    app.status !== 'cancelado'
-                );
-
-                if (dayHasAppointments) {
-                    alert('Não é possível bloquear o dia inteiro, pois já existem agendamentos marcados. Por favor, cancele ou reagende os atendimentos primeiro.');
-                    return;
-                }
-
-                showConfirmModal(`Tem certeza que deseja bloquear o dia ${new Date(state.selectedDate + 'T00:00:00').toLocaleDateString('pt-BR')} para todos os profissionais?`, async () => {
-                    const START_HOUR = 8;
-                    const END_HOUR = 19;
-                    const DURATION_MINUTES = (END_HOUR - START_HOUR) * 60;
-                    const startDateTime = new Date(`${state.selectedDate}T08:00:00`);
-
-                    try {
-                        for (const prof of state.professionals) {
-                            const data = {
-                                date: Timestamp.fromDate(startDateTime),
-                                professionalId: prof.id,
-                                duration: DURATION_MINUTES,
-                                reason: 'Dia bloqueado',
-                                type: 'block'
-                            };
-                            await addDoc(collection(db, 'appointments'), data);
-                        }
-                        alert('Dia bloqueado com sucesso!');
-                    } catch (err) {
-                        console.error("Erro ao bloquear o dia:", err);
-                        alert("Ocorreu um erro ao tentar bloquear o dia.");
-                    }
-                });
-            };
-
-            openBlockTimeModalBtn.addEventListener('click', handleBlockEntireDayClick);
-            closeBlockTimeModalBtn.addEventListener('click', () => blockTimeModal.classList.add('hidden'));
             
+            closeBlockTimeModalBtn.addEventListener('click', () => blockTimeModal.classList.add('hidden'));
             blockTimeForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const id = blockIdToEdit.value;
@@ -1454,6 +1446,82 @@
                     deleteDoc(doc(db, 'appointments', id))
                         .then(() => { blockTimeModal.classList.add('hidden'); })
                         .catch(err => console.error(err));
+                });
+            });
+
+            // --- Lógica para o NOVO Modal de Bloqueio de Dia Inteiro ---
+            function openBlockDayModal() {
+                document.getElementById('blockDayDate').textContent = new Date(state.selectedDate + 'T00:00:00').toLocaleDateString('pt-BR');
+                const adminView = document.getElementById('blockDayProfessionalAdminView');
+                const userView = document.getElementById('blockDayProfessionalUserView');
+                if (state.role === 'admin') {
+                    adminView.style.display = 'block';
+                    userView.style.display = 'none';
+                    const selectEl = document.getElementById('blockDayProfessional');
+                    selectEl.innerHTML = '<option value="">Selecione...</option>';
+                    state.professionals.forEach(p => {
+                        selectEl.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+                    });
+                } else {
+                    adminView.style.display = 'none';
+                    userView.style.display = 'block';
+                    document.getElementById('blockDayProfessionalName').textContent = state.professionalProfile.name;
+                }
+                blockDayModal.classList.remove('hidden');
+            }
+
+            openBlockTimeModalBtn.addEventListener('click', openBlockDayModal);
+            closeBlockDayModalBtn.addEventListener('click', () => blockDayModal.classList.add('hidden'));
+
+            blockDayForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                let professionalId;
+                let professionalName;
+
+                if (state.role === 'admin') {
+                    const selectEl = document.getElementById('blockDayProfessional');
+                    professionalId = selectEl.value;
+                    if (!professionalId) {
+                        alert('Por favor, selecione um profissional.');
+                        return;
+                    }
+                    professionalName = selectEl.options[selectEl.selectedIndex].text;
+                } else {
+                    professionalId = state.professionalProfile.id;
+                    professionalName = state.professionalProfile.name;
+                }
+
+                const dayHasAppointments = state.appointments.some(app =>
+                    app.professionalId === professionalId &&
+                    app.date.toISOString().split('T')[0] === state.selectedDate &&
+                    app.type === 'booking' &&
+                    app.status !== 'cancelado'
+                );
+
+                if (dayHasAppointments) {
+                    alert(`Não é possível bloquear o dia para ${professionalName}, pois já existem agendamentos marcados. Por favor, cancele ou reagende os atendimentos primeiro.`);
+                    return;
+                }
+
+                showConfirmModal(`Tem certeza que deseja bloquear o dia inteiro para ${professionalName}?`, async () => {
+                    const START_HOUR = 8;
+                    const END_HOUR = 19;
+                    const DURATION_MINUTES = (END_HOUR - START_HOUR) * 60;
+                    const startDateTime = new Date(`${state.selectedDate}T08:00:00`);
+                    const data = {
+                        date: Timestamp.fromDate(startDateTime),
+                        professionalId: professionalId,
+                        duration: DURATION_MINUTES,
+                        reason: 'Dia bloqueado',
+                        type: 'block'
+                    };
+                    try {
+                        await addDoc(collection(db, 'appointments'), data);
+                        blockDayModal.classList.add('hidden');
+                    } catch (err) {
+                        console.error("Erro ao bloquear o dia:", err);
+                        alert("Ocorreu um erro ao tentar bloquear o dia.");
+                    }
                 });
             });
 
