@@ -526,10 +526,6 @@
         let reminderInterval = null;
         let signaturePad = null;
         
-        // ... (Todas as outras funções como renderServices, etc., permanecem inalteradas, exceto as que precisam de ajuste) ...
-
-        // A PARTIR DAQUI ESTÃO AS FUNÇÕES COMPLETAS E ATUALIZADAS
-        
         function renderServices(servicesList) {
             if (!servicesList) return;
             servicesList.innerHTML = '';
@@ -1566,6 +1562,44 @@
                 }
             });
 
+            function openClientProfileModal(clientId) {
+                const client = state.clients.find(c => c.id === clientId);
+                if (!client) return;
+
+                document.getElementById('profileClientName').textContent = client.name;
+                document.getElementById('profileClientPhone').textContent = client.phone;
+                document.getElementById('profileClientAddress').textContent = client.address || 'Não informado';
+                document.getElementById('profileClientObservations').textContent = client.observations || 'Nenhuma observação.';
+                
+                const historyContainer = document.getElementById('anamnesisHistoryContainer');
+                historyContainer.innerHTML = '';
+                if (client.anamnesisHistory && client.anamnesisHistory.length > 0) {
+                    [...client.anamnesisHistory].reverse().forEach(record => {
+                        const date = record.date.toDate().toLocaleDateString('pt-BR');
+                        const el = document.createElement('details');
+                        el.className = 'bg-gray-100 p-2 rounded-lg text-sm';
+                        el.innerHTML = `
+                            <summary class="font-semibold cursor-pointer">Ficha de ${date}</summary>
+                            <div class="mt-2 pt-2 border-t text-xs space-y-1">
+                                <p><strong>Alergias:</strong> ${record.answers.alergia === 'sim' ? record.answers.alergia_qual : 'Não'}</p>
+                                <p><strong>Doenças de Pele:</strong> ${record.answers.doenca_pele === 'sim' ? record.answers.doenca_pele_qual : 'Não'}</p>
+                                <p><strong>Problemas de Coagulação:</strong> ${record.answers.coagulacao}</p>
+                                <p><strong>Diabetes:</strong> ${record.answers.diabetes}</p>
+                                <p><strong>Infecção Prévia:</strong> ${record.answers.infeccao}</p>
+                                <p><strong>Gestante:</strong> ${record.answers.gestante}</p>
+                                <p class="mt-2"><strong>Assinatura:</strong></p>
+                                <img src="${record.signature}" class="border rounded">
+                            </div>
+                        `;
+                        historyContainer.appendChild(el);
+                    });
+                } else {
+                    historyContainer.innerHTML = `<p class="text-sm text-gray-500">Nenhum histórico encontrado.</p>`;
+                }
+                
+                clientProfileModal.classList.remove('hidden');
+            }
+
             confirmModalOk.addEventListener('click', () => {
                 if (typeof confirmAction === 'function') { confirmAction(); }
                 confirmModal.classList.add('hidden');
@@ -1588,16 +1622,15 @@
                 unsubscribes.forEach(unsub => unsub());
                 unsubscribes = [];
                 const renderAll = () => {
-                    const allElements = {servicesList, professionalsList, clientsList, appointmentsForDay, appointmentsTitle, openAppointmentModal, openBlockTimeModal, agendamentosHojeEl, faturamentoHojeEl, totalClientesEl, totalServicosEl, proximosAgendamentosEl, financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl, ganhosProfissionalMesEl, calendarDays, currentMonthYear, dailyViewTimeSlots, dailyViewTitle, openActionChoiceModal};
-                    renderServices(allElements.servicesList);
-                    renderProfessionals(allElements.professionalsList);
-                    renderClients(allElements.clientsList);
-                    renderAppointmentsForDay(allElements.appointmentsForDay, allElements.appointmentsTitle, state.selectedDate);
-                    renderDashboard(allElements.agendamentosHojeEl, allElements.faturamentoHojeEl, allElements.totalClientesEl, allElements.totalServicosEl, allElements.proximosAgendamentosEl);
-                    renderFinanceiro(allElements.financeiroCurrentMonthYear, allElements.detalhesFinanceiroEl, allElements.faturamentoTotalMesEl, allElements.ganhosProfissionalMesEl);
-                    renderCalendar(allElements.calendarDays, allElements.currentMonthYear);
+                    renderServices(document.getElementById('servicesList'));
+                    renderProfessionals(document.getElementById('professionalsList'));
+                    renderClients(document.getElementById('clientsList'));
+                    renderAppointmentsForDay(document.getElementById('appointmentsForDay'), document.getElementById('appointmentsTitle'), state.selectedDate);
+                    renderDashboard(document.getElementById('agendamentosHoje'), document.getElementById('faturamentoHoje'), document.getElementById('totalClientes'), document.getElementById('totalServicos'), document.getElementById('proximosAgendamentos'));
+                    renderFinanceiro(document.getElementById('financeiroCurrentMonthYear'), document.getElementById('detalhesFinanceiro'), document.getElementById('faturamentoTotalMes'), document.getElementById('ganhosProfissionalMes'));
+                    renderCalendar(document.getElementById('calendarDays'), document.getElementById('currentMonthYear'));
                     if(!document.getElementById('dailyView').classList.contains('hidden')) {
-                        renderDailyView(allElements.dailyViewTimeSlots, allElements.dailyViewTitle, state.selectedDate, allElements.openActionChoiceModal);
+                        renderDailyView(document.getElementById('dailyViewTimeSlots'), document.getElementById('dailyViewTitle'), state.selectedDate, openActionChoiceModal);
                     }
                 };
                 if (state.role === 'admin') {
@@ -1650,7 +1683,7 @@
                     updateUIVisibility();
                     setupDataListeners();
                     
-                    renderCalendar(calendarDays, currentMonthYear);
+                    renderCalendar(document.getElementById('calendarDays'), document.getElementById('currentMonthYear'));
                     appContainer.classList.remove('hidden'); 
                     loginPage.classList.add('hidden');
                 } else {
