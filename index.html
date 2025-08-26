@@ -114,11 +114,13 @@
                     <button id="nextMonthBtn" class="p-2 rounded-full hover:bg-gray-100"><i class="fas fa-chevron-right"></i></button>
                 </div>
 
+                <!-- BOTÃO DE NOVO AGENDAMENTO ADICIONADO AQUI -->
                 <div class="flex items-center justify-center mb-4 gap-2">
                     <div class="view-toggle flex w-full bg-gray-200 rounded-lg p-1">
                         <button id="monthViewBtn" class="w-1/2 py-1 text-sm font-semibold rounded-md active">Mês</button>
                         <button id="dayViewBtn" class="w-1/2 py-1 text-sm font-semibold rounded-md">Dia</button>
                     </div>
+                    <button id="headerNewAppointmentBtn" title="Novo Agendamento" class="flex-shrink-0 bg-pink-500 text-white w-10 h-10 rounded-lg flex items-center justify-center shadow-lg hover:bg-pink-600 transition"><i class="fas fa-plus"></i></button>
                     <button id="openBlockTimeModalBtn" title="Bloquear Horário" class="flex-shrink-0 bg-gray-600 text-white w-10 h-10 rounded-lg flex items-center justify-center shadow-lg hover:bg-gray-700 transition"><i class="fas fa-lock"></i></button>
                 </div>
 
@@ -597,7 +599,8 @@
                 return;
             }
             const dateObj = new Date(selected + 'T00:00:00');
-            appointmentsTitle.textContent = `Agendamentos para ${dateObj.toLocaleDateString('pt-BR')}:`;
+            // ATUALIZAÇÃO 1: Título da agenda na visão mensal
+            appointmentsTitle.textContent = `Agendamentos para o dia ${dateObj.getDate()}:`;
             const dayAppointments = state.appointments.filter(app => app.date && app.date.toISOString().split('T')[0] === selected).sort((a, b) => a.date - b.date);
             appointmentsForDay.innerHTML = '';
             if (dayAppointments.length === 0) {
@@ -652,12 +655,7 @@
                     appointmentsForDay.appendChild(el);
                 });
             }
-            // CÓDIGO CORRIGIDO
-        const newAppointmentBtn = document.createElement('button');
-        newAppointmentBtn.className = 'w-full bg-pink-500 text-white py-2 mt-4 rounded-lg font-semibold hover:bg-pink-600 transition';
-        newAppointmentBtn.textContent = 'Novo Agendamento';
-        newAppointmentBtn.onclick = () => openAppointmentModal(state.selectedDate); // Correção aqui
-        appointmentsForDay.appendChild(newAppointmentBtn);
+            // ATUALIZAÇÃO 2: Botão de novo agendamento foi removido daqui e movido para o cabeçalho da página
         }
 
         function renderCalendar(calendarDays, currentMonthYear) {
@@ -688,7 +686,9 @@
 
         function renderDailyView(dailyViewTimeSlots, dailyViewTitle, dateString, openActionChoiceModal) {
             const date = new Date(dateString + 'T00:00:00');
-            dailyViewTitle.textContent = `Agenda para ${date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}`;
+            // ATUALIZAÇÃO 1: Título da agenda na visão diária
+            const weekday = date.toLocaleDateString('pt-BR', { weekday: 'long' });
+            dailyViewTitle.textContent = `${weekday.charAt(0).toUpperCase() + weekday.slice(1)}, dia ${date.getDate()}`;
             dailyViewTimeSlots.innerHTML = '';
 
             const dayAppointments = state.appointments
@@ -1058,6 +1058,12 @@
             const canvas = document.getElementById('signature-pad');
             const clearSignatureBtn = document.getElementById('clearSignatureBtn');
             signaturePad = new SignaturePad(canvas);
+            
+            // ATUALIZAÇÃO 2: Listener para o novo botão de agendamento
+            const headerNewAppointmentBtn = document.getElementById('headerNewAppointmentBtn');
+            headerNewAppointmentBtn.addEventListener('click', () => {
+                openAppointmentModal(state.selectedDate);
+            });
 
             registerButton.addEventListener('click', async () => {
                 const email = emailInput.value;
