@@ -1104,9 +1104,8 @@
                     document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('day-selected'));
                     dayEl.classList.add('day-selected');
                     state.selectedDate = dayEl.dataset.date;
-                    // Ação 1: Cria a lista e o botão "Novo Agendamento"
                     renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, state.selectedDate);
-                    // A linha que escondia a tela foi removida.
+                    dayViewBtn.click();
                 }
             });
 
