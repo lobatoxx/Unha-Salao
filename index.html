@@ -499,10 +499,7 @@
 
         let unsubscribes = [];
         let reminderInterval = null;
-        
-        // ... (Todas as outras funções como renderServices, etc., permanecem inalteradas, exceto as que precisam de ajuste) ...
-
-        // A PARTIR DAQUI ESTÃO AS FUNÇÕES COMPLETAS E ATUALIZADAS
+        let signaturePad = null;
         
         function renderServices(servicesList) {
             if (!servicesList) return;
@@ -983,6 +980,8 @@
             const appointmentModalTitle = document.getElementById('appointmentModalTitle');
             const appointmentIdToEdit = document.getElementById('appointmentIdToEdit');
             const deleteAppointmentBtn = document.getElementById('deleteAppointmentBtn');
+            const startAppointmentAction = document.getElementById('startAppointmentAction');
+            const startAppointmentBtn = document.getElementById('startAppointmentBtn');
             const editAppointmentActions = document.getElementById('editAppointmentActions');
             const invoiceAppointmentBtn = document.getElementById('invoiceAppointmentBtn');
             const cancelAppointmentBtn = document.getElementById('cancelAppointmentBtn');
@@ -1022,6 +1021,12 @@
             const reminderInvoiceBtn = document.getElementById('reminderInvoiceBtn');
             const reminderRescheduleBtn = document.getElementById('reminderRescheduleBtn');
             const closeReminderModalBtn = document.getElementById('closeReminderModalBtn');
+            const anamnesisModal = document.getElementById('anamnesisModal');
+            const anamnesisForm = document.getElementById('anamnesisForm');
+            const closeAnamnesisModalBtn = document.getElementById('closeAnamnesisModalBtn');
+            const canvas = document.getElementById('signature-pad');
+            const clearSignatureBtn = document.getElementById('clearSignatureBtn');
+            signaturePad = new SignaturePad(canvas);
 
             registerButton.addEventListener('click', async () => {
                 const email = emailInput.value;
@@ -1144,6 +1149,7 @@
                 appointmentDate.value = date;
                 deleteAppointmentBtn.classList.add('hidden');
                 editAppointmentActions.classList.add('hidden');
+                startAppointmentAction.classList.add('hidden');
                 document.getElementById('appointmentObservationDisplay').classList.add('hidden');
 
                 const clientSelect = document.getElementById('appointmentClient');
@@ -1167,6 +1173,8 @@
                     deleteAppointmentBtn.classList.remove('hidden');
 
                     if (app.status === 'agendado') {
+                        startAppointmentAction.classList.remove('hidden');
+                    } else if (app.status === 'concluido') {
                         editAppointmentActions.classList.remove('hidden');
                     }
                     if (app.observation) {
@@ -1440,6 +1448,84 @@
                 }
             }
 
+            function openAnamnesisModal(appointmentId) {
+                const app = state.appointments.find(a => a.id === appointmentId);
+                const client = state.clients.find(c => c.id === app.clientId);
+                if (!app || !client) return;
+
+                anamnesisForm.reset();
+                signaturePad.clear();
+                
+                anamnesisAppointmentId.value = app.id;
+                anamnesisClientId.value = client.id;
+                anamnesisClientName.textContent = client.name;
+                anamnesisClientPhone.textContent = client.phone;
+
+                // Pre-fill with last anamnesis if it exists
+                if (client.anamnesisHistory && client.anamnesisHistory.length > 0) {
+                    const lastRecord = client.anamnesisHistory[client.anamnesisHistory.length - 1];
+                    Object.keys(lastRecord.answers).forEach(key => {
+                        const value = lastRecord.answers[key];
+                        const input = anamnesisForm.querySelector(`[name="${key}"][value="${value}"]`);
+                        if (input && input.type === 'radio') {
+                            input.checked = true;
+                        } else {
+                            const textInput = anamnesisForm.querySelector(`[name="${key}"]`);
+                            if (textInput) textInput.value = value;
+                        }
+                    });
+                }
+
+                addAppointmentModal.classList.add('hidden');
+                anamnesisModal.classList.remove('hidden');
+            }
+
+            startAppointmentBtn.addEventListener('click', () => {
+                const appId = appointmentIdToEdit.value;
+                openAnamnesisModal(appId);
+            });
+
+            clearSignatureBtn.addEventListener('click', () => signaturePad.clear());
+            closeAnamnesisModalBtn.addEventListener('click', () => anamnesisModal.classList.add('hidden'));
+
+            anamnesisForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (signaturePad.isEmpty()) {
+                    alert('A assinatura do cliente é obrigatória.');
+                    return;
+                }
+
+                const clientId = anamnesisClientId.value;
+                const appointmentId = anamnesisAppointmentId.value;
+                const formData = new FormData(anamnesisForm);
+                const answers = {};
+                for (let [key, value] of formData.entries()) {
+                    answers[key] = value;
+                }
+                
+                const newRecord = {
+                    date: Timestamp.now(),
+                    answers: answers,
+                    signature: signaturePad.toDataURL() // Save signature as Base64 image
+                };
+
+                try {
+                    const clientRef = doc(db, 'clients', clientId);
+                    await updateDoc(clientRef, {
+                        anamnesisHistory: arrayUnion(newRecord)
+                    });
+                    
+                    await updateDoc(doc(db, 'appointments', appointmentId), {
+                        status: 'concluido'
+                    });
+
+                    anamnesisModal.classList.add('hidden');
+                } catch (err) {
+                    console.error("Erro ao salvar ficha:", err);
+                    alert("Ocorreu um erro ao salvar a ficha. Tente novamente.");
+                }
+            });
+
             confirmModalOk.addEventListener('click', () => {
                 if (typeof confirmAction === 'function') { confirmAction(); }
                 confirmModal.classList.add('hidden');
@@ -1643,7 +1729,7 @@
         }
         main();
         
-        </script>
+    </script>
 
     <script>
       // Verifica se o navegador suporta Service Workers
