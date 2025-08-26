@@ -1098,6 +1098,7 @@
                 renderDailyView(dailyViewTimeSlots, dailyViewTitle, state.selectedDate, openActionChoiceModal);
             });
 
+            // CÓDIGO CORRIGIDO
             calendarDays.addEventListener('click', (e) => {
                 const dayEl = e.target.closest('.calendar-day');
                 if (dayEl && dayEl.dataset.date) {
@@ -1105,7 +1106,6 @@
                     dayEl.classList.add('day-selected');
                     state.selectedDate = dayEl.dataset.date;
                     renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, state.selectedDate);
-                    
                 }
             });
 
