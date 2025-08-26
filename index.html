@@ -661,7 +661,7 @@
             const date = state.currentDate;
             const year = date.getFullYear();
             const month = date.getMonth();
-            currentMonthYear.textContent = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+            
             const firstDayOfMonth = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             for (let i = 0; i < firstDayOfMonth; i++) { calendarDays.innerHTML += `<div></div>`; }
@@ -681,6 +681,29 @@
                 calendarDays.appendChild(dayEl);
             }
         }
+
+        // COLE ESTA NOVA FUNÇÃO NO SEU CÓDIGO
+        function updateTopHeaderDate() {
+            const currentMonthYear = document.getElementById('currentMonthYear');
+            const dailyView = document.getElementById('dailyView');
+            const date = state.currentDate;
+
+            if (dailyView.classList.contains('hidden')) {
+                // Se estivermos na visualização de MÊS
+                currentMonthYear.textContent = date.toLocaleDateString('pt-BR', {
+                    month: 'long',
+                    year: 'numeric'
+                });
+            } else {
+                // Se estivermos na visualização de DIA
+                currentMonthYear.textContent = date.toLocaleDateString('pt-BR', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long'
+                });
+            }
+        }
+
 
         function renderDailyView(dailyViewTimeSlots, dailyViewTitle, dateString, openActionChoiceModal) {
             const date = new Date(dateString + 'T00:00:00');
@@ -1072,6 +1095,7 @@
             logoutButton.addEventListener('click', () => signOut(auth));
 
             const refreshAllViews = () => {
+                updateTopHeaderDate();
                 renderCalendar(calendarDays, currentMonthYear);
                 renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, state.selectedDate);
                 renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl, ganhosProfissionalMesEl);
@@ -1085,6 +1109,7 @@
                 dailyView.classList.add('hidden');
                 monthViewBtn.classList.add('active');
                 dayViewBtn.classList.remove('active');
+                updateTopHeaderDate();
             });
             dayViewBtn.addEventListener('click', () => {
                 monthlyView.style.display = 'none';
@@ -1092,6 +1117,7 @@
                 monthViewBtn.classList.remove('active');
                 dayViewBtn.classList.add('active');
                 renderDailyView(dailyViewTimeSlots, dailyViewTitle, state.selectedDate, openActionChoiceModal);
+                updateTopHeaderDate();
             });
 
             calendarDays.addEventListener('click', (e) => {
