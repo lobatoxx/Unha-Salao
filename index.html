@@ -136,7 +136,7 @@
                 </div>
 
                 <div id="dailyView" class="hidden">
-                    <h3 id="dailyViewTitle" class="font-bold text-gray-700 mb-2 text-center"></h3>
+                    <h3 id="dailyViewTitle" class="hidden font-bold text-gray-700 mb-2 text-center"></h3>
                     <div id="dailyViewTimeSlots" class="relative"></div>
                 </div>
             </div>
@@ -705,8 +705,13 @@
         }
 
 
-        function renderDailyView(dailyViewTimeSlots, dailyViewTitle, dateString, openActionChoiceModal) {
-            const date = new Date(dateString + 'T00:00:00');
+// SUBSTITUA A FUNÇÃO ANTIGA POR ESTA
+        function renderDailyView(dailyViewTimeSlots, dailyViewTitle, openActionChoiceModal) {
+            // Usa a data principal do estado para garantir consistência
+            const date = state.currentDate;
+            const dateString = date.toISOString().split('T')[0];
+
+            // Atualiza o título inferior (que vamos esconder no próximo passo)
             dailyViewTitle.textContent = `Agenda para ${date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}`;
             dailyViewTimeSlots.innerHTML = '';
 
@@ -714,6 +719,7 @@
                 .filter(app => app.date && app.date.toISOString().split('T')[0] === dateString)
                 .sort((a, b) => a.date - b.date);
 
+            // O restante da função continua exatamente como estava...
             const START_HOUR = 8;
             const END_HOUR = 19;
             const SLOT_DURATION_MINUTES = 30;
@@ -737,18 +743,18 @@
                 }
             }
             dailyViewTimeSlots.appendChild(backgroundSlots);
-            
+
             dayAppointments.forEach(app => {
                 const isBlock = app.type === 'block';
                 const service = !isBlock ? state.services.find(s => s.id === app.serviceId) : null;
                 const client = !isBlock ? state.clients.find(c => c.id === app.clientId) : null;
                 const professional = state.professionals.find(p => p.id === app.professionalId);
                 const duration = isBlock ? app.duration : (service?.duration || SLOT_DURATION_MINUTES);
-                
+
                 const startMinutes = (app.date.getHours() * 60 + app.date.getMinutes()) - (START_HOUR * 60);
                 const topPosition = (startMinutes / SLOT_DURATION_MINUTES) * SLOT_HEIGHT_REM;
                 const height = (duration / SLOT_DURATION_MINUTES) * SLOT_HEIGHT_REM;
-                
+
                 const appEndTime = new Date(app.date.getTime() + duration * 60000);
                 const overlappingApps = dayAppointments.filter(otherApp => {
                     const otherIsBlock = otherApp.type === 'block';
@@ -760,10 +766,10 @@
 
                 const numColumns = overlappingApps.length;
                 const columnIndex = overlappingApps.findIndex(a => a.id === app.id);
-                
+
                 const width = 100 / numColumns;
                 const left = columnIndex * width;
-                
+
                 const el = document.createElement('div');
                 let bgColor = isBlock ? 'bg-gray-200' : 'bg-pink-100';
                 let borderColor = isBlock ? 'border-gray-500' : 'border-pink-500';
@@ -784,7 +790,7 @@
                 el.dataset.id = app.id;
 
                 let statusIcon = '';
-                 if (app.status === 'faturado') {
+                    if (app.status === 'faturado') {
                     statusIcon = `<i class="fas fa-dollar-sign text-green-600 text-xs absolute top-1 right-1 pointer-events-none"></i>`;
                 } else if (app.status === 'cancelado') {
                     statusIcon = `<i class="fas fa-ban text-red-600 text-xs absolute top-1 right-1 pointer-events-none"></i>`;
@@ -813,11 +819,15 @@
                         ${statusIcon}
                     `;
                 }
-                
+
                 dailyViewTimeSlots.appendChild(el);
             });
         }
-        
+                
+
+
+
+
         function renderDashboard(agendamentosHojeEl, faturamentoHojeEl, totalClientesEl, totalServicosEl, proximosAgendamentosEl) {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
