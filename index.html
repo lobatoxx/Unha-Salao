@@ -11,6 +11,8 @@
 
     <script src="https://cdn-tailwindcss.vercel.app/"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/1.5.3/signature_pad.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -554,6 +556,116 @@
         let reminderInterval = null;
         let signaturePad = null;
         
+        // --- NOVA FUNÇÃO PARA EXPORTAR PDF ---
+        async function exportAnamnesisToPDF(client, record) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            // --- IMPORTANTE: COLOQUE SEU LOGO AQUI ---
+            // Substitua a string abaixo pela versão Base64 do seu logo (Opção B, recomendada)
+            // ou pelo link direto da imagem (Opção A).
+            const logoBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAARAAAACABAMAAAA2AgPEAAAAElBMVEX///8AAAB3d3ePj49/f3+Ojo72/29IAAAAQklEQVR42u3PMQEAAAgCoP2/tjwz0GDAvQcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgdw4eMQABG8Lw3gAAAABJRU5ErkJggg=='; // Placeholder cinza
+            
+            try {
+                doc.addImage(logoBase64, 'PNG', 15, 10, 60, 20); // (logo, formato, x, y, largura, altura)
+            } catch(e) {
+                console.error("Erro ao adicionar o logo. Verifique se o código Base64 ou o link estão corretos.", e);
+                doc.text("Logo não carregado", 15, 20);
+            }
+
+            doc.setFontSize(18);
+            doc.setFont("helvetica", "bold");
+            doc.text('Ficha de Anamnese', 105, 45, { align: 'center' });
+
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Data: ${record.date.toDate().toLocaleDateString('pt-BR')}`, 15, 55);
+
+            doc.line(15, 60, 195, 60); // Linha separadora
+
+            doc.setFont("helvetica", "bold");
+            doc.text('Dados do Cliente', 15, 68);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Nome: ${client.name}`, 15, 75);
+            doc.text(`Telefone: ${client.phone}`, 15, 82);
+
+            doc.line(15, 90, 195, 90);
+
+            doc.setFont("helvetica", "bold");
+            doc.text('Questionário', 15, 98);
+            
+            // Mapeamento das perguntas para o texto completo
+            const questions = {
+                alergia: "1. Possui alergia a cosméticos?",
+                alergia_qual: "Qual?",
+                doenca_pele: "2. Possui doenças de pele nas mãos ou unhas?",
+                doenca_pele_qual: "Quais?",
+                coagulacao: "3. Faz uso de anticoagulantes?",
+                diabetes: "4. Possui diabetes?",
+                infeccao: "5. Já teve infecção nas unhas após procedimento?",
+                gestante: "6. Está gestante?"
+            };
+
+            let yPosition = 105;
+            const answers = record.answers;
+            
+            const renderQuestion = (key) => {
+                if (yPosition > 260) { // Cria nova página se o conteúdo for longo
+                    doc.addPage();
+                    yPosition = 20;
+                }
+                const answer = (answers[key] || 'Não informado').toUpperCase();
+                const text = `${questions[key]}: ${answer}`;
+                doc.text(text, 15, yPosition);
+                yPosition += 7;
+                
+                const detailKey = `${key}_qual`;
+                if(answers[key] === 'sim' && answers[detailKey]) {
+                    doc.text(`  - ${questions[detailKey]}: ${answers[detailKey]}`, 18, yPosition);
+                    yPosition += 7;
+                }
+            };
+            
+            renderQuestion('alergia');
+            renderQuestion('doenca_pele');
+            renderQuestion('coagulacao');
+            renderQuestion('diabetes');
+            renderQuestion('infeccao');
+            renderQuestion('gestante');
+
+            doc.line(15, yPosition, 195, yPosition);
+            yPosition += 8;
+            doc.setFont("helvetica", "bold");
+            doc.text('Assinatura do Cliente:', 15, yPosition);
+            yPosition += 5;
+
+            try {
+                doc.addImage(record.signature, 'PNG', 15, yPosition, 80, 25);
+            } catch(e) {
+                console.error("Erro ao adicionar a assinatura", e);
+                doc.text("Assinatura inválida", 15, yPosition + 10);
+            }
+
+            const fileName = `Anamnese_${client.name.replace(/ /g, '_')}_${record.date.toDate().toLocaleDateString('pt-BR')}.pdf`;
+
+            // Lógica de compartilhamento para celular ou download para desktop
+            if (navigator.share) {
+                const pdfBlob = doc.output('blob');
+                const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+                try {
+                    await navigator.share({
+                        title: `Anamnese de ${client.name}`,
+                        text: `Segue a ficha de anamnese preenchida em ${record.date.toDate().toLocaleDateString('pt-BR')}.`,
+                        files: [pdfFile]
+                    });
+                } catch(e) {
+                    console.log('Compartilhamento cancelado ou falhou', e);
+                }
+            } else {
+                doc.save(fileName);
+            }
+        }
+        
         function renderServices(servicesList) {
             if (!servicesList) return;
             servicesList.innerHTML = '';
@@ -1089,7 +1201,6 @@
             const clearSignatureBtn = document.getElementById('clearSignatureBtn');
             signaturePad = new SignaturePad(canvas);
 
-            // --- Seletores para o novo modal de Bloqueio de Dia ---
             const blockDayModal = document.getElementById('blockDayModal');
             const closeBlockDayModalBtn = document.getElementById('closeBlockDayModalBtn');
             const blockDayForm = document.getElementById('blockDayForm');
@@ -1365,7 +1476,6 @@
                 });
             });
             
-            // --- Lógica para o Modal de Bloqueio de Horário Específico ---
             function openBlockTimeModal(blockId = null) {
                 blockTimeForm.reset();
                 blockIdToEdit.value = '';
@@ -1449,7 +1559,7 @@
                 });
             });
 
-            // --- Lógica para o NOVO Modal de Bloqueio de Dia Inteiro ---
+            // --- Lógica para o Modal de Bloqueio de Dia Inteiro ---
             function openBlockDayModal() {
                 document.getElementById('blockDayDate').textContent = new Date(state.selectedDate + 'T00:00:00').toLocaleDateString('pt-BR');
                 const adminView = document.getElementById('blockDayProfessionalAdminView');
@@ -1712,22 +1822,39 @@
                 historyContainer.innerHTML = '';
                 if (client.anamnesisHistory && client.anamnesisHistory.length > 0) {
                     [...client.anamnesisHistory].reverse().forEach(record => {
-                        const date = record.date.toDate().toLocaleDateString('pt-BR');
                         const el = document.createElement('details');
                         el.className = 'bg-gray-100 p-2 rounded-lg text-sm';
-                        el.innerHTML = `
-                            <summary class="font-semibold cursor-pointer">Ficha de ${date}</summary>
-                            <div class="mt-2 pt-2 border-t text-xs space-y-1">
-                                <p><strong>Alergias:</strong> ${record.answers.alergia === 'sim' ? record.answers.alergia_qual : 'Não'}</p>
-                                <p><strong>Doenças de Pele:</strong> ${record.answers.doenca_pele === 'sim' ? record.answers.doenca_pele_qual : 'Não'}</p>
-                                <p><strong>Problemas de Coagulação:</strong> ${record.answers.coagulacao}</p>
-                                <p><strong>Diabetes:</strong> ${record.answers.diabetes}</p>
-                                <p><strong>Infecção Prévia:</strong> ${record.answers.infeccao}</p>
-                                <p><strong>Gestante:</strong> ${record.answers.gestante}</p>
-                                <p class="mt-2"><strong>Assinatura:</strong></p>
-                                <img src="${record.signature}" class="border rounded">
-                            </div>
+                        
+                        const contentDiv = document.createElement('div');
+                        contentDiv.className = 'mt-2 pt-2 border-t text-xs space-y-1';
+                        contentDiv.innerHTML = `
+                            <p><strong>Alergias:</strong> ${record.answers.alergia === 'sim' ? record.answers.alergia_qual : 'Não'}</p>
+                            <p><strong>Doenças de Pele:</strong> ${record.answers.doenca_pele === 'sim' ? record.answers.doenca_pele_qual : 'Não'}</p>
+                            <p><strong>Problemas de Coagulação:</strong> ${record.answers.coagulacao}</p>
+                            <p><strong>Diabetes:</strong> ${record.answers.diabetes}</p>
+                            <p><strong>Infecção Prévia:</strong> ${record.answers.infeccao}</p>
+                            <p><strong>Gestante:</strong> ${record.answers.gestante}</p>
+                            <p class="mt-2"><strong>Assinatura:</strong></p>
+                            <img src="${record.signature}" class="border rounded">
                         `;
+                        
+                        const summary = document.createElement('summary');
+                        summary.className = 'font-semibold cursor-pointer flex justify-between items-center';
+                        const dateText = document.createElement('span');
+                        dateText.textContent = `Ficha de ${record.date.toDate().toLocaleDateString('pt-BR')}`;
+                        
+                        const pdfButton = document.createElement('button');
+                        pdfButton.className = 'bg-red-500 text-white px-2 py-1 text-xs rounded hover:bg-red-600';
+                        pdfButton.innerHTML = '<i class="fas fa-file-pdf mr-1"></i> Exportar';
+                        pdfButton.onclick = (e) => {
+                            e.preventDefault(); // Impede que o <details> feche ao clicar no botão
+                            exportAnamnesisToPDF(client, record);
+                        };
+
+                        summary.appendChild(dateText);
+                        summary.appendChild(pdfButton);
+                        el.appendChild(summary);
+                        el.appendChild(contentDiv);
                         historyContainer.appendChild(el);
                     });
                 } else {
