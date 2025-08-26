@@ -1488,6 +1488,84 @@
                 }
             }
 
+            function openAnamnesisModal(appointmentId) {
+                const app = state.appointments.find(a => a.id === appointmentId);
+                const client = state.clients.find(c => c.id === app.clientId);
+                if (!app || !client) return;
+
+                anamnesisForm.reset();
+                signaturePad.clear();
+                
+                anamnesisAppointmentId.value = app.id;
+                anamnesisClientId.value = client.id;
+                anamnesisClientName.textContent = client.name;
+                anamnesisClientPhone.textContent = client.phone;
+
+                // Pre-fill with last anamnesis if it exists
+                if (client.anamnesisHistory && client.anamnesisHistory.length > 0) {
+                    const lastRecord = client.anamnesisHistory[client.anamnesisHistory.length - 1];
+                    Object.keys(lastRecord.answers).forEach(key => {
+                        const value = lastRecord.answers[key];
+                        const input = anamnesisForm.querySelector(`[name="${key}"][value="${value}"]`);
+                        if (input && input.type === 'radio') {
+                            input.checked = true;
+                        } else {
+                            const textInput = anamnesisForm.querySelector(`[name="${key}"]`);
+                            if (textInput) textInput.value = value;
+                        }
+                    });
+                }
+
+                addAppointmentModal.classList.add('hidden');
+                anamnesisModal.classList.remove('hidden');
+            }
+
+            startAppointmentBtn.addEventListener('click', () => {
+                const appId = appointmentIdToEdit.value;
+                openAnamnesisModal(appId);
+            });
+
+            clearSignatureBtn.addEventListener('click', () => signaturePad.clear());
+            closeAnamnesisModalBtn.addEventListener('click', () => anamnesisModal.classList.add('hidden'));
+
+            anamnesisForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (signaturePad.isEmpty()) {
+                    alert('A assinatura do cliente é obrigatória.');
+                    return;
+                }
+
+                const clientId = anamnesisClientId.value;
+                const appointmentId = anamnesisAppointmentId.value;
+                const formData = new FormData(anamnesisForm);
+                const answers = {};
+                for (let [key, value] of formData.entries()) {
+                    answers[key] = value;
+                }
+                
+                const newRecord = {
+                    date: Timestamp.now(),
+                    answers: answers,
+                    signature: signaturePad.toDataURL() // Save signature as Base64 image
+                };
+
+                try {
+                    const clientRef = doc(db, 'clients', clientId);
+                    await updateDoc(clientRef, {
+                        anamnesisHistory: arrayUnion(newRecord)
+                    });
+                    
+                    await updateDoc(doc(db, 'appointments', appointmentId), {
+                        status: 'concluido'
+                    });
+
+                    anamnesisModal.classList.add('hidden');
+                } catch (err) {
+                    console.error("Erro ao salvar ficha:", err);
+                    alert("Ocorreu um erro ao salvar a ficha. Tente novamente.");
+                }
+            });
+
             confirmModalOk.addEventListener('click', () => {
                 if (typeof confirmAction === 'function') { confirmAction(); }
                 confirmModal.classList.add('hidden');
@@ -1615,6 +1693,12 @@
                     return;
                 }
 
+                const profileBtn = e.target.closest('.client-profile-btn');
+                if (profileBtn) {
+                    openClientProfileModal(profileBtn.dataset.id);
+                    return;
+                }
+
                 if (state.role !== 'admin') return;
                 const editBtn = e.target.closest('.edit-client-btn');
                 const deleteBtn = e.target.closest('.delete-client-btn');
@@ -1624,8 +1708,10 @@
                     if (clientToEdit) {
                         clientModalTitle.textContent = 'Editar Cliente';
                         clientIdToEdit.value = clientId;
-                        clientName.value = clientToEdit.name;
-                        clientPhone.value = clientToEdit.phone;
+                        document.getElementById('clientName').value = clientToEdit.name;
+                        document.getElementById('clientPhone').value = clientToEdit.phone;
+                        document.getElementById('clientAddress').value = clientToEdit.address || '';
+                        document.getElementById('clientObservations').value = clientToEdit.observations || '';
                         addClientModal.classList.remove('hidden');
                     }
                 }
