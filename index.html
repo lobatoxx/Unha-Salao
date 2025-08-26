@@ -652,10 +652,11 @@
                     appointmentsForDay.appendChild(el);
                 });
             }
+            // CÓDIGO CORRIGIDO
             const newAppointmentBtn = document.createElement('button');
             newAppointmentBtn.className = 'w-full bg-pink-500 text-white py-2 mt-4 rounded-lg font-semibold hover:bg-pink-600 transition';
             newAppointmentBtn.textContent = 'Novo Agendamento';
-            newAppointmentBtn.onclick = () => openAppointmentModal(selected);
+            newAppointmentBtn.onclick = () => openAppointmentModal(state.selectedDate); // Correção aqui
             appointmentsForDay.appendChild(newAppointmentBtn);
         }
 
