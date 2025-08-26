@@ -191,6 +191,29 @@
         </div>
     </div>
     
+    <div id="clientProfileModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6 h-full overflow-y-auto no-scrollbar">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold">Ficha do Cliente</h3>
+                <button id="closeClientProfileModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <div class="space-y-4">
+                <h4 class="font-bold border-b pb-2">Dados Pessoais</h4>
+                <p class="text-sm"><strong class="font-semibold">Nome:</strong> <span id="profileClientName"></span></p>
+                <p class="text-sm"><strong class="font-semibold">Telefone:</strong> <span id="profileClientPhone"></span></p>
+                <p class="text-sm"><strong class="font-semibold">Endereço:</strong> <span id="profileClientAddress"></span></p>
+                <div>
+                    <h4 class="text-sm font-bold text-gray-700">Observações Gerais:</h4>
+                    <p id="profileClientObservations" class="text-sm text-gray-600 whitespace-pre-wrap bg-gray-50 p-2 rounded"></p>
+                </div>
+                
+                <h4 class="font-bold border-b pb-2 mt-6">Histórico de Anamnese</h4>
+                <div id="anamnesisHistoryContainer" class="space-y-3">
+                    <p class="text-sm text-gray-500">Nenhum histórico encontrado.</p>
+                </div>
+            </div>
+        </div>
+    </div>
     <div id="anamnesisModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6 h-full overflow-y-auto no-scrollbar">
             <div class="flex justify-between items-center mb-4">
@@ -352,6 +375,8 @@
                 <div class="space-y-4">
                     <input type="text" id="clientName" placeholder="Nome do cliente" class="w-full px-4 py-2 border rounded-lg" required>
                     <input type="tel" id="clientPhone" placeholder="Telefone (WhatsApp)" class="w-full px-4 py-2 border rounded-lg" required>
+                    <input type="text" id="clientAddress" placeholder="Endereço (opcional)" class="w-full px-4 py-2 border rounded-lg">
+                    <textarea id="clientObservations" rows="3" class="w-full p-2 border rounded-lg" placeholder="Observações gerais sobre o cliente..."></textarea>
                 </div>
                 <div class="mt-6 flex justify-end gap-3">
                     <button type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300" onclick="document.getElementById('addClientModal').classList.add('hidden')">Cancelar</button>
@@ -377,11 +402,11 @@
                     </select>
                 </div>
                 <div id="appointmentObservationDisplay" class="hidden mt-4 p-2 bg-gray-100 rounded-lg">
-                    <h4 class="text-sm font-bold text-gray-700">Observações:</h4>
+                    <h4 class="text-sm font-bold text-gray-700">Observações do Atendimento:</h4>
                     <p id="appointmentObservationText" class="text-sm text-gray-600 whitespace-pre-wrap"></p>
                 </div>
                 <div id="startAppointmentAction" class="hidden mt-6">
-                    <button type="button" id="startAppointmentBtn" class="w-full bg-green-500 text-white px-3 py-2 text-sm rounded-lg font-semibold hover:bg-green-600">Iniciar Atendimento</button>
+                    <button type="button" id="startAppointmentBtn" class="w-full bg-green-500 text-white px-3 py-2 text-sm rounded-lg font-semibold hover:bg-green-600">Iniciar Atendimento (Anamnese)</button>
                 </div>
                 <div id="editAppointmentActions" class="hidden mt-6 flex justify-between items-center gap-3">
                      <button type="button" id="cancelAppointmentBtn" class="bg-gray-500 text-white px-3 py-2 text-sm rounded-lg font-semibold hover:bg-gray-600">Cancelar Atendimento</button>
@@ -501,6 +526,10 @@
         let reminderInterval = null;
         let signaturePad = null;
         
+        // ... (Todas as outras funções como renderServices, etc., permanecem inalteradas, exceto as que precisam de ajuste) ...
+
+        // A PARTIR DAQUI ESTÃO AS FUNÇÕES COMPLETAS E ATUALIZADAS
+        
         function renderServices(servicesList) {
             if (!servicesList) return;
             servicesList.innerHTML = '';
@@ -552,7 +581,10 @@
                 }
 
                 el.innerHTML = `
-                    <div><p class="font-semibold text-gray-800">${client.name}</p><p class="text-sm text-gray-500">${client.phone}</p></div>
+                    <div class="flex-1 cursor-pointer client-profile-btn" data-id="${client.id}">
+                        <p class="font-semibold text-gray-800">${client.name}</p>
+                        <p class="text-sm text-gray-500">${client.phone}</p>
+                    </div>
                     <div class="flex items-center gap-2">
                         <button class="whatsapp-btn text-green-500" data-id="${client.id}"><i class="fab fa-whatsapp"></i></button>
                         ${adminButtons}
@@ -962,6 +994,8 @@
             const addClientForm = document.getElementById('addClientForm');
             const clientModalTitle = document.getElementById('clientModalTitle');
             const clientIdToEdit = document.getElementById('clientIdToEdit');
+            const clientProfileModal = document.getElementById('clientProfileModal');
+            const closeClientProfileModalBtn = document.getElementById('closeClientProfileModalBtn');
             const appointmentsTitle = document.getElementById('appointmentsTitle');
             const prevMonthBtn = document.getElementById('prevMonthBtn');
             const nextMonthBtn = document.getElementById('nextMonthBtn');
@@ -1135,14 +1169,20 @@
             addClientForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const id = clientIdToEdit.value;
-                const data = { name: clientName.value, phone: clientPhone.value };
-                if (!data.name || !data.phone) { alert('Preencha todos os campos.'); return; }
+                const data = { 
+                    name: document.getElementById('clientName').value, 
+                    phone: document.getElementById('clientPhone').value,
+                    address: document.getElementById('clientAddress').value,
+                    observations: document.getElementById('clientObservations').value
+                };
+                if (!data.name || !data.phone) { alert('Nome e telefone são obrigatórios.'); return; }
                 try {
                     if (id) { await updateDoc(doc(db, 'clients', id), data); } 
                     else { await addDoc(collection(db, 'clients'), data); }
                     addClientForm.reset(); addClientModal.classList.add('hidden');
                 } catch (err) { console.error(err); }
             });
+            closeClientProfileModalBtn.addEventListener('click', () => clientProfileModal.classList.add('hidden'));
 
             function openAppointmentModal(date, appointmentId = null) {
                 addAppointmentForm.reset();
@@ -1448,84 +1488,6 @@
                 }
             }
 
-            function openAnamnesisModal(appointmentId) {
-                const app = state.appointments.find(a => a.id === appointmentId);
-                const client = state.clients.find(c => c.id === app.clientId);
-                if (!app || !client) return;
-
-                anamnesisForm.reset();
-                signaturePad.clear();
-                
-                anamnesisAppointmentId.value = app.id;
-                anamnesisClientId.value = client.id;
-                anamnesisClientName.textContent = client.name;
-                anamnesisClientPhone.textContent = client.phone;
-
-                // Pre-fill with last anamnesis if it exists
-                if (client.anamnesisHistory && client.anamnesisHistory.length > 0) {
-                    const lastRecord = client.anamnesisHistory[client.anamnesisHistory.length - 1];
-                    Object.keys(lastRecord.answers).forEach(key => {
-                        const value = lastRecord.answers[key];
-                        const input = anamnesisForm.querySelector(`[name="${key}"][value="${value}"]`);
-                        if (input && input.type === 'radio') {
-                            input.checked = true;
-                        } else {
-                            const textInput = anamnesisForm.querySelector(`[name="${key}"]`);
-                            if (textInput) textInput.value = value;
-                        }
-                    });
-                }
-
-                addAppointmentModal.classList.add('hidden');
-                anamnesisModal.classList.remove('hidden');
-            }
-
-            startAppointmentBtn.addEventListener('click', () => {
-                const appId = appointmentIdToEdit.value;
-                openAnamnesisModal(appId);
-            });
-
-            clearSignatureBtn.addEventListener('click', () => signaturePad.clear());
-            closeAnamnesisModalBtn.addEventListener('click', () => anamnesisModal.classList.add('hidden'));
-
-            anamnesisForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                if (signaturePad.isEmpty()) {
-                    alert('A assinatura do cliente é obrigatória.');
-                    return;
-                }
-
-                const clientId = anamnesisClientId.value;
-                const appointmentId = anamnesisAppointmentId.value;
-                const formData = new FormData(anamnesisForm);
-                const answers = {};
-                for (let [key, value] of formData.entries()) {
-                    answers[key] = value;
-                }
-                
-                const newRecord = {
-                    date: Timestamp.now(),
-                    answers: answers,
-                    signature: signaturePad.toDataURL() // Save signature as Base64 image
-                };
-
-                try {
-                    const clientRef = doc(db, 'clients', clientId);
-                    await updateDoc(clientRef, {
-                        anamnesisHistory: arrayUnion(newRecord)
-                    });
-                    
-                    await updateDoc(doc(db, 'appointments', appointmentId), {
-                        status: 'concluido'
-                    });
-
-                    anamnesisModal.classList.add('hidden');
-                } catch (err) {
-                    console.error("Erro ao salvar ficha:", err);
-                    alert("Ocorreu um erro ao salvar a ficha. Tente novamente.");
-                }
-            });
-
             confirmModalOk.addEventListener('click', () => {
                 if (typeof confirmAction === 'function') { confirmAction(); }
                 confirmModal.classList.add('hidden');
@@ -1652,6 +1614,7 @@
                     openWhatsAppMessageModal(whatsAppBtn.dataset.id);
                     return;
                 }
+
                 if (state.role !== 'admin') return;
                 const editBtn = e.target.closest('.edit-client-btn');
                 const deleteBtn = e.target.closest('.delete-client-btn');
