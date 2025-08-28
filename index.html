@@ -501,7 +501,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, query, addDoc, doc, deleteDoc, updateDoc, Timestamp, getDocs, where, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, query, addDoc, doc, deleteDoc, updateDoc, Timestamp, getDocs, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         
         const firebaseConfig = {
@@ -1919,7 +1919,35 @@
                 });
             });
 
-            function setupDataListenersForSalon(salonId, role, professionalId) {
+            async function getUserProfile(user) {
+                // Tenta encontrar como profissional primeiro
+                let q = query(collection(db, 'professionals'), where("userId", "==", user.uid));
+                let snapshot = await getDocs(q);
+                if (!snapshot.empty) {
+                    const doc = snapshot.docs[0];
+                    return {
+                        role: 'professional',
+                        salonId: doc.data().salonId,
+                        profile: { id: doc.id, ...doc.data() }
+                    };
+                }
+
+                // Se não for, tenta encontrar como dono de salão
+                q = query(collection(db, 'salons'), where("ownerId", "==", user.uid));
+                snapshot = await getDocs(q);
+                if (!snapshot.empty) {
+                    const doc = snapshot.docs[0];
+                    return {
+                        role: 'salonOwner',
+                        salonId: doc.id,
+                        profile: null
+                    };
+                }
+                
+                return null; // Usuário sem papel definido
+            }
+
+            function setupDataListenersForSalon(salonId, role, professionalProfile) {
                 const renderAll = () => {
                     renderServices(document.getElementById('servicesList'));
                     renderProfessionals(document.getElementById('professionalsList'));
@@ -1933,21 +1961,16 @@
                     }
                 };
 
-                const collectionsToListen = { 
-                    services: "services", 
-                    clients: "clients", 
-                    professionals: "professionals",
-                    appointments: "appointments"
-                };
+                const collectionsToListen = ["services", "clients", "professionals", "appointments"];
 
-                Object.keys(collectionsToListen).forEach(key => {
-                    const dataQuery = query(collection(db, collectionsToListen[key]), where("salonId", "==", salonId));
+                collectionsToListen.forEach(key => {
+                    const dataQuery = query(collection(db, key), where("salonId", "==", salonId));
                     
                     const unsub = onSnapshot(dataQuery, (snapshot) => {
                         let documents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), date: doc.data().date?.toDate() }));
                         
                         if (role === 'professional' && key === 'appointments') {
-                            documents = documents.filter(app => app.professionalId === professionalId);
+                            documents = documents.filter(app => app.professionalId === professionalProfile.id);
                         }
 
                         state[key] = documents;
@@ -1964,42 +1987,21 @@
                 unsubscribes.forEach(unsub => unsub());
                 unsubscribes = [];
 
-                if (user) {
-                    try {
+                try {
+                    if (user) {
                         state.user = user;
-                        let userRole = null;
-                        let userSalonId = null;
-                        let professionalProfile = null;
+                        const userProfile = await getUserProfile(user);
 
-                        const professionalsRef = collection(db, 'professionals');
-                        let q = query(professionalsRef, where("userId", "==", user.uid));
-                        let professionalSnapshot = await getDocs(q);
-                        
-                        if (!professionalSnapshot.empty) {
-                            const professionalDoc = professionalSnapshot.docs[0];
-                            userRole = 'professional';
-                            userSalonId = professionalDoc.data().salonId;
-                            professionalProfile = { id: professionalDoc.id, ...professionalDoc.data() };
-                            reminderInterval = setInterval(checkAppointmentsForReminders, 60000);
-                        } else {
-                            const salonsRef = collection(db, 'salons');
-                            q = query(salonsRef, where("ownerId", "==", user.uid));
-                            const salonSnapshot = await getDocs(q);
-
-                            if (!salonSnapshot.empty) {
-                                const salonDoc = salonSnapshot.docs[0];
-                                userRole = 'salonOwner';
-                                userSalonId = salonDoc.id;
-                            }
-                        }
-
-                        if (userRole && userSalonId) {
-                            state.role = userRole;
-                            state.userSalonId = userSalonId;
-                            state.professionalProfile = professionalProfile;
-
-                            setupDataListenersForSalon(userSalonId, userRole, professionalProfile?.id);
+                        if (userProfile) {
+                            state.role = userProfile.role;
+                            state.userSalonId = userProfile.salonId;
+                            state.professionalProfile = userProfile.profile;
                             
+                            if (userProfile.role === 'professional') {
+                                reminderInterval = setInterval(checkAppointmentsForReminders, 60000);
+                            }
+
+                            setupDataListenersForSalon(state.userSalonId, state.role, state.professionalProfile);
                             updateUIVisibility();
                             appContainer.classList.remove('hidden');
                             loginPage.classList.add('hidden');
@@ -2007,16 +2009,15 @@
                             console.error("Usuário autenticado mas sem papel (dono/profissional). Deslogando.");
                             signOut(auth);
                         }
-                    } catch (error) {
-                        console.error("Erro durante a verificação de estado de autenticação:", error);
-                        signOut(auth);
-                    } finally {
-                        loadingOverlay.classList.add('hidden');
+                    } else {
+                        state = { user: null, role: 'client', userSalonId: null, professionalProfile: null, appointments: [], professionals: [], clients: [], services: [], currentDate: new Date(), selectedDate: new Date().toISOString().split('T')[0], tempSlot: { date: null, time: null }, tempClient: { id: null, name: null, phone: null } };
+                        appContainer.classList.add('hidden'); 
+                        loginPage.classList.remove('hidden');
                     }
-                } else {
-                    state = { ...state, user: null, role: 'client', userSalonId: null, professionalProfile: null, appointments: [], professionals: [], clients: [], services: [] };
-                    appContainer.classList.add('hidden'); 
-                    loginPage.classList.remove('hidden');
+                } catch (error) {
+                    console.error("Erro crítico na inicialização:", error);
+                    signOut(auth); // Desloga em caso de erro para evitar loop
+                } finally {
                     loadingOverlay.classList.add('hidden');
                 }
             });
