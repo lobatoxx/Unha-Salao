@@ -500,7 +500,7 @@
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, deleteUser } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, query, addDoc, doc, deleteDoc, updateDoc, Timestamp, getDocs, where, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         
@@ -1919,93 +1919,106 @@
                 });
             });
 
+            function setupDataListenersForSalon(salonId, role, professionalId) {
+                const renderAll = () => {
+                    renderServices(document.getElementById('servicesList'));
+                    renderProfessionals(document.getElementById('professionalsList'));
+                    renderClients(document.getElementById('clientsList'));
+                    renderAppointmentsForDay(document.getElementById('appointmentsForDay'), document.getElementById('appointmentsTitle'), state.selectedDate);
+                    renderDashboard(document.getElementById('agendamentosHoje'), document.getElementById('faturamentoHoje'), document.getElementById('totalClientes'), document.getElementById('totalServicos'), document.getElementById('proximosAgendamentos'));
+                    renderFinanceiro(document.getElementById('financeiroCurrentMonthYear'), document.getElementById('detalhesFinanceiro'), document.getElementById('faturamentoTotalMes'), document.getElementById('ganhosProfissionalMes'));
+                    renderCalendar(document.getElementById('calendarDays'), document.getElementById('currentMonthYear'));
+                    if(!document.getElementById('dailyView').classList.contains('hidden')) {
+                        renderDailyView(document.getElementById('dailyViewTimeSlots'), document.getElementById('dailyViewTitle'), state.selectedDate, openActionChoiceModal);
+                    }
+                };
+
+                const collectionsToListen = { 
+                    services: "services", 
+                    clients: "clients", 
+                    professionals: "professionals",
+                    appointments: "appointments"
+                };
+
+                Object.keys(collectionsToListen).forEach(key => {
+                    const dataQuery = query(collection(db, collectionsToListen[key]), where("salonId", "==", salonId));
+                    
+                    const unsub = onSnapshot(dataQuery, (snapshot) => {
+                        let documents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), date: doc.data().date?.toDate() }));
+                        
+                        if (role === 'professional' && key === 'appointments') {
+                            documents = documents.filter(app => app.professionalId === professionalId);
+                        }
+
+                        state[key] = documents;
+                        renderAll();
+                    }, (error) => {
+                        console.error(`Erro ao buscar ${key}:`, error);
+                    });
+                    unsubscribes.push(unsub);
+                });
+            }
+
             onAuthStateChanged(auth, async (user) => {
                 if (reminderInterval) clearInterval(reminderInterval);
                 unsubscribes.forEach(unsub => unsub());
                 unsubscribes = [];
 
                 if (user) {
-                    state.user = user;
-                    let foundRole = false;
+                    try {
+                        state.user = user;
+                        let userRole = null;
+                        let userSalonId = null;
+                        let professionalProfile = null;
 
-                    const professionalsRef = collection(db, 'professionals');
-                    let q = query(professionalsRef, where("userId", "==", user.uid));
-                    let professionalSnapshot = await getDocs(q);
-                    
-                    if (!professionalSnapshot.empty) {
-                        const professionalDoc = professionalSnapshot.docs[0];
-                        state.professionalProfile = { id: professionalDoc.id, ...professionalDoc.data() };
-                        state.role = 'professional';
-                        state.userSalonId = professionalDoc.data().salonId;
-                        reminderInterval = setInterval(checkAppointmentsForReminders, 60000);
-                        foundRole = true;
-                    }
-
-                    if (!foundRole) {
-                        const salonsRef = collection(db, 'salons');
-                        q = query(salonsRef, where("ownerId", "==", user.uid));
-                        const salonSnapshot = await getDocs(q);
-
-                        if (!salonSnapshot.empty) {
-                            const salonDoc = salonSnapshot.docs[0];
-                            state.role = 'salonOwner';
-                            state.userSalonId = salonDoc.id;
-                            foundRole = true;
-                        }
-                    }
-
-                    if (!foundRole) {
-                        console.log("Usuário sem papel definido. Deslogando.");
-                        signOut(auth);
-                        return;
-                    }
-                    
-                    const renderAll = () => {
-                        renderServices(document.getElementById('servicesList'));
-                        renderProfessionals(document.getElementById('professionalsList'));
-                        renderClients(document.getElementById('clientsList'));
-                        renderAppointmentsForDay(document.getElementById('appointmentsForDay'), document.getElementById('appointmentsTitle'), state.selectedDate);
-                        renderDashboard(document.getElementById('agendamentosHoje'), document.getElementById('faturamentoHoje'), document.getElementById('totalClientes'), document.getElementById('totalServicos'), document.getElementById('proximosAgendamentos'));
-                        renderFinanceiro(document.getElementById('financeiroCurrentMonthYear'), document.getElementById('detalhesFinanceiro'), document.getElementById('faturamentoTotalMes'), document.getElementById('ganhosProfissionalMes'));
-                        renderCalendar(document.getElementById('calendarDays'), document.getElementById('currentMonthYear'));
-                        if(!document.getElementById('dailyView').classList.contains('hidden')) {
-                            renderDailyView(document.getElementById('dailyViewTimeSlots'), document.getElementById('dailyViewTitle'), state.selectedDate, openActionChoiceModal);
-                        }
-                    };
-
-                    const collectionsToListen = { 
-                        services: "services", 
-                        clients: "clients", 
-                        professionals: "professionals",
-                        appointments: "appointments"
-                    };
-
-                    Object.keys(collectionsToListen).forEach(key => {
-                        const dataQuery = query(collection(db, collectionsToListen[key]), where("salonId", "==", state.userSalonId));
+                        const professionalsRef = collection(db, 'professionals');
+                        let q = query(professionalsRef, where("userId", "==", user.uid));
+                        let professionalSnapshot = await getDocs(q);
                         
-                        const unsub = onSnapshot(dataQuery, (snapshot) => {
-                            let documents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), date: doc.data().date?.toDate() }));
-                            
-                            if (state.role === 'professional' && key === 'appointments') {
-                                documents = documents.filter(app => app.professionalId === state.professionalProfile.id);
+                        if (!professionalSnapshot.empty) {
+                            const professionalDoc = professionalSnapshot.docs[0];
+                            userRole = 'professional';
+                            userSalonId = professionalDoc.data().salonId;
+                            professionalProfile = { id: professionalDoc.id, ...professionalDoc.data() };
+                            reminderInterval = setInterval(checkAppointmentsForReminders, 60000);
+                        } else {
+                            const salonsRef = collection(db, 'salons');
+                            q = query(salonsRef, where("ownerId", "==", user.uid));
+                            const salonSnapshot = await getDocs(q);
+
+                            if (!salonSnapshot.empty) {
+                                const salonDoc = salonSnapshot.docs[0];
+                                userRole = 'salonOwner';
+                                userSalonId = salonDoc.id;
                             }
+                        }
 
-                            state[key] = documents;
-                            renderAll();
-                        });
-                        unsubscribes.push(unsub);
-                    });
+                        if (userRole && userSalonId) {
+                            state.role = userRole;
+                            state.userSalonId = userSalonId;
+                            state.professionalProfile = professionalProfile;
 
-                    updateUIVisibility();
-                    appContainer.classList.remove('hidden'); 
-                    loginPage.classList.add('hidden');
-
+                            setupDataListenersForSalon(userSalonId, userRole, professionalProfile?.id);
+                            
+                            updateUIVisibility();
+                            appContainer.classList.remove('hidden');
+                            loginPage.classList.add('hidden');
+                        } else {
+                            console.error("Usuário autenticado mas sem papel (dono/profissional). Deslogando.");
+                            signOut(auth);
+                        }
+                    } catch (error) {
+                        console.error("Erro durante a verificação de estado de autenticação:", error);
+                        signOut(auth);
+                    } finally {
+                        loadingOverlay.classList.add('hidden');
+                    }
                 } else {
                     state = { ...state, user: null, role: 'client', userSalonId: null, professionalProfile: null, appointments: [], professionals: [], clients: [], services: [] };
                     appContainer.classList.add('hidden'); 
                     loginPage.classList.remove('hidden');
+                    loadingOverlay.classList.add('hidden');
                 }
-                setTimeout(() => loadingOverlay.classList.add('hidden'), 500);
             });
 
             servicesList.addEventListener('click', (e) => {
