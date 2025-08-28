@@ -174,23 +174,6 @@
                 <button data-page="financeiroPage" class="nav-btn text-center text-gray-400"><i class="fas fa-chart-pie text-xl"></i><p class="text-xs">Financeiro</p></button>
             </div>
         </footer>
-
-        <div id="reminderModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
-                <div class="flex items-start gap-3">
-                    <div class="text-pink-500 mt-1 text-xl"><i class="fas fa-clock"></i></div>
-                    <div class="flex-1">
-                        <h4 class="font-bold text-gray-800">Finalizar Atendimento</h4>
-                        <p id="reminderText" class="text-sm text-gray-600 mt-1"></p>
-                        <div class="flex gap-2 mt-4">
-                            <button id="reminderInvoiceBtn" class="w-full bg-green-500 text-white px-3 py-2 text-sm rounded-md font-semibold hover:bg-green-600">Faturar</button>
-                            <button id="reminderRescheduleBtn" class="w-full bg-blue-500 text-white px-3 py-2 text-sm rounded-md font-semibold hover:bg-blue-600">Reagendar</button>
-                        </div>
-                    </div>
-                    <button id="closeReminderModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
-                </div>
-            </div>
-        </div>
     </div>
     
     <div id="clientProfileModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
@@ -1998,15 +1981,16 @@
                     };
 
                     Object.keys(collectionsToListen).forEach(key => {
-                        let dataQuery;
-                        if (state.role === 'professional' && key === 'appointments') {
-                            dataQuery = query(collection(db, collectionsToListen[key]), where("salonId", "==", state.userSalonId), where("professionalId", "==", state.professionalProfile.id));
-                        } else {
-                            dataQuery = query(collection(db, collectionsToListen[key]), where("salonId", "==", state.userSalonId));
-                        }
+                        const dataQuery = query(collection(db, collectionsToListen[key]), where("salonId", "==", state.userSalonId));
                         
                         const unsub = onSnapshot(dataQuery, (snapshot) => {
-                            state[key] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), date: doc.data().date?.toDate() }));
+                            let documents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), date: doc.data().date?.toDate() }));
+                            
+                            if (state.role === 'professional' && key === 'appointments') {
+                                documents = documents.filter(app => app.professionalId === state.professionalProfile.id);
+                            }
+
+                            state[key] = documents;
                             renderAll();
                         });
                         unsubscribes.push(unsub);
