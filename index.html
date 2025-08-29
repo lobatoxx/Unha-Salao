@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="https://placehold.co/192x192/EC4899/FFFFFF?text=BJ">
     <link rel="manifest" href="/manifest.json">
 
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn-tailwindcss.vercel.app/"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/1.5.3/signature_pad.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
@@ -174,6 +174,23 @@
                 <button data-page="financeiroPage" class="nav-btn text-center text-gray-400"><i class="fas fa-chart-pie text-xl"></i><p class="text-xs">Financeiro</p></button>
             </div>
         </footer>
+
+        <div id="reminderModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
+                <div class="flex items-start gap-3">
+                    <div class="text-pink-500 mt-1 text-xl"><i class="fas fa-clock"></i></div>
+                    <div class="flex-1">
+                        <h4 class="font-bold text-gray-800">Finalizar Atendimento</h4>
+                        <p id="reminderText" class="text-sm text-gray-600 mt-1"></p>
+                        <div class="flex gap-2 mt-4">
+                            <button id="reminderInvoiceBtn" class="w-full bg-green-500 text-white px-3 py-2 text-sm rounded-md font-semibold hover:bg-green-600">Faturar</button>
+                            <button id="reminderRescheduleBtn" class="w-full bg-blue-500 text-white px-3 py-2 text-sm rounded-md font-semibold hover:bg-blue-600">Reagendar</button>
+                        </div>
+                    </div>
+                    <button id="closeReminderModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+                </div>
+            </div>
+        </div>
     </div>
     
     <div id="clientProfileModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
@@ -500,7 +517,7 @@
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, deleteUser } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, query, addDoc, doc, deleteDoc, updateDoc, Timestamp, getDocs, where, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         
@@ -748,7 +765,7 @@
                                     ${statusIcon}
                                 </div>
                                 <div class="flex items-center">
-                                    <p class="font-semibold text-gray-800 pointer-events-none">${client?.name || '...'}</p>
+                                    <p class="font-semibold text-gray-800">${client?.name || '...'}</p>
                                     <button class="whatsapp-btn text-green-500 ml-2 text-sm" data-id="${client?.id}"><i class="fab fa-whatsapp"></i></button>
                                 </div>
                                 <p class="text-sm text-gray-600 pointer-events-none">${serviceName} com ${prof}</p>
@@ -1090,9 +1107,6 @@
             const addServiceForm = document.getElementById('addServiceForm');
             const serviceModalTitle = document.getElementById('serviceModalTitle');
             const serviceIdToEdit = document.getElementById('serviceIdToEdit');
-            const serviceName = document.getElementById('serviceName');
-            const servicePrice = document.getElementById('servicePrice');
-            const serviceDuration = document.getElementById('serviceDuration');
             const professionalsList = document.getElementById('professionalsList');
             const openProfessionalModalBtn = document.getElementById('openProfessionalModalBtn');
             const closeProfessionalModalBtn = document.getElementById('closeProfessionalModalBtn');
@@ -1348,7 +1362,7 @@
                 
                 try {
                     if (id) { 
-                        const { salonId, email, ...updateData } = data;
+                        const { salonId, email, ...updateData } = data; // Não permite alterar email ou salonId ao editar
                         await updateDoc(doc(db, 'professionals', id), updateData); 
                     } else { 
                         await addDoc(collection(db, 'professionals'), data); 
@@ -1919,105 +1933,92 @@
                 });
             });
 
-            async function getUserProfile(user) {
-                let q = query(collection(db, 'professionals'), where("userId", "==", user.uid));
-                let snapshot = await getDocs(q);
-                if (!snapshot.empty) {
-                    const doc = snapshot.docs[0];
-                    return {
-                        role: 'professional',
-                        salonId: doc.data().salonId,
-                        profile: { id: doc.id, ...doc.data() }
-                    };
-                }
-
-                q = query(collection(db, 'salons'), where("ownerId", "==", user.uid));
-                snapshot = await getDocs(q);
-                if (!snapshot.empty) {
-                    const doc = snapshot.docs[0];
-                    return {
-                        role: 'salonOwner',
-                        salonId: doc.id,
-                        profile: null
-                    };
-                }
-                
-                return null;
-            }
-
-            function setupDataListenersForSalon(salonId, role, professionalProfile) {
-                const renderAll = () => {
-                    renderServices(document.getElementById('servicesList'));
-                    renderProfessionals(document.getElementById('professionalsList'));
-                    renderClients(document.getElementById('clientsList'));
-                    renderAppointmentsForDay(document.getElementById('appointmentsForDay'), document.getElementById('appointmentsTitle'), state.selectedDate);
-                    renderDashboard(document.getElementById('agendamentosHoje'), document.getElementById('faturamentoHoje'), document.getElementById('totalClientes'), document.getElementById('totalServicos'), document.getElementById('proximosAgendamentos'));
-                    renderFinanceiro(document.getElementById('financeiroCurrentMonthYear'), document.getElementById('detalhesFinanceiro'), document.getElementById('faturamentoTotalMes'), document.getElementById('ganhosProfissionalMes'));
-                    renderCalendar(document.getElementById('calendarDays'), document.getElementById('currentMonthYear'));
-                    if(!document.getElementById('dailyView').classList.contains('hidden')) {
-                        renderDailyView(document.getElementById('dailyViewTimeSlots'), document.getElementById('dailyViewTitle'), state.selectedDate, openActionChoiceModal);
-                    }
-                };
-
-                const collectionsToListen = ["services", "clients", "professionals", "appointments"];
-
-                collectionsToListen.forEach(key => {
-                    const dataQuery = query(collection(db, key), where("salonId", "==", salonId));
-                    
-                    const unsub = onSnapshot(dataQuery, (snapshot) => {
-                        let documents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), date: doc.data().date?.toDate() }));
-                        
-                        if (role === 'professional' && key === 'appointments') {
-                            documents = documents.filter(app => app.professionalId === professionalProfile.id);
-                        }
-
-                        state[key] = documents;
-                        renderAll();
-                    }, (error) => {
-                        console.error(`Erro ao buscar ${key}:`, error);
-                    });
-                    unsubscribes.push(unsub);
-                });
-            }
-
             onAuthStateChanged(auth, async (user) => {
                 if (reminderInterval) clearInterval(reminderInterval);
                 unsubscribes.forEach(unsub => unsub());
                 unsubscribes = [];
 
-                try {
-                    if (user) {
-                        state.user = user;
-                        const userProfile = await getUserProfile(user);
+                if (user) {
+                    state.user = user;
+                    let foundRole = false;
 
-                        if (userProfile) {
-                            state.role = userProfile.role;
-                            state.userSalonId = userProfile.salonId;
-                            state.professionalProfile = userProfile.profile;
-                            
-                            if (userProfile.role === 'professional') {
-                                reminderInterval = setInterval(checkAppointmentsForReminders, 60000);
-                            }
-
-                            setupDataListenersForSalon(state.userSalonId, state.role, state.professionalProfile);
-                            updateUIVisibility();
-                            appContainer.classList.remove('hidden');
-                            loginPage.classList.add('hidden');
-                        } else {
-                            console.error("Usuário autenticado mas sem papel (dono/profissional). Deslogando.");
-                            signOut(auth);
-                        }
-                    } else {
-                        state = { user: null, role: 'client', userSalonId: null, professionalProfile: null, appointments: [], professionals: [], clients: [], services: [], currentDate: new Date(), selectedDate: new Date().toISOString().split('T')[0], tempSlot: { date: null, time: null }, tempClient: { id: null, name: null, phone: null } };
-                        appContainer.classList.add('hidden'); 
-                        loginPage.classList.remove('hidden');
+                    const professionalsRef = collection(db, 'professionals');
+                    let q = query(professionalsRef, where("userId", "==", user.uid));
+                    let professionalSnapshot = await getDocs(q);
+                    
+                    if (!professionalSnapshot.empty) {
+                        const professionalDoc = professionalSnapshot.docs[0];
+                        state.professionalProfile = { id: professionalDoc.id, ...professionalDoc.data() };
+                        state.role = 'professional';
+                        state.userSalonId = professionalDoc.data().salonId;
+                        reminderInterval = setInterval(checkAppointmentsForReminders, 60000);
+                        foundRole = true;
                     }
-                } catch (error) {
-                    console.error("Erro crítico na inicialização:", error);
-                    signOut(auth);
-                } finally {
-                    loadingOverlay.classList.add('hidden');
+
+                    if (!foundRole) {
+                        const salonsRef = collection(db, 'salons');
+                        q = query(salonsRef, where("ownerId", "==", user.uid));
+                        const salonSnapshot = await getDocs(q);
+
+                        if (!salonSnapshot.empty) {
+                            const salonDoc = salonSnapshot.docs[0];
+                            state.role = 'salonOwner';
+                            state.userSalonId = salonDoc.id;
+                            foundRole = true;
+                        }
+                    }
+
+                    if (!foundRole) {
+                        console.log("Usuário sem papel definido. Deslogando.");
+                        signOut(auth);
+                        return;
+                    }
+                    
+                    const renderAll = () => {
+                        renderServices(document.getElementById('servicesList'));
+                        renderProfessionals(document.getElementById('professionalsList'));
+                        renderClients(document.getElementById('clientsList'));
+                        renderAppointmentsForDay(document.getElementById('appointmentsForDay'), document.getElementById('appointmentsTitle'), state.selectedDate);
+                        renderDashboard(document.getElementById('agendamentosHoje'), document.getElementById('faturamentoHoje'), document.getElementById('totalClientes'), document.getElementById('totalServicos'), document.getElementById('proximosAgendamentos'));
+                        renderFinanceiro(document.getElementById('financeiroCurrentMonthYear'), document.getElementById('detalhesFinanceiro'), document.getElementById('faturamentoTotalMes'), document.getElementById('ganhosProfissionalMes'));
+                        renderCalendar(document.getElementById('calendarDays'), document.getElementById('currentMonthYear'));
+                        if(!document.getElementById('dailyView').classList.contains('hidden')) {
+                            renderDailyView(document.getElementById('dailyViewTimeSlots'), document.getElementById('dailyViewTitle'), state.selectedDate, openActionChoiceModal);
+                        }
+                    };
+
+                    const collectionsToListen = { 
+                        services: "services", 
+                        clients: "clients", 
+                        professionals: "professionals",
+                        appointments: "appointments"
+                    };
+
+                    Object.keys(collectionsToListen).forEach(key => {
+                        let dataQuery;
+                        if (state.role === 'professional' && key === 'appointments') {
+                            dataQuery = query(collection(db, collectionsToListen[key]), where("salonId", "==", state.userSalonId), where("professionalId", "==", state.professionalProfile.id));
+                        } else {
+                            dataQuery = query(collection(db, collectionsToListen[key]), where("salonId", "==", state.userSalonId));
+                        }
+                        
+                        const unsub = onSnapshot(dataQuery, (snapshot) => {
+                            state[key] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), date: doc.data().date?.toDate() }));
+                            renderAll();
+                        });
+                        unsubscribes.push(unsub);
+                    });
+
+                    updateUIVisibility();
+                    appContainer.classList.remove('hidden'); 
+                    loginPage.classList.add('hidden');
+
+                } else {
+                    state = { ...state, user: null, role: 'client', userSalonId: null, professionalProfile: null, appointments: [], professionals: [], clients: [], services: [] };
+                    appContainer.classList.add('hidden'); 
+                    loginPage.classList.remove('hidden');
                 }
+                setTimeout(() => loadingOverlay.classList.add('hidden'), 500);
             });
 
             servicesList.addEventListener('click', (e) => {
@@ -2138,8 +2139,7 @@
             appointmentsForDay.addEventListener('click', handleAgendaClick);
             dailyViewTimeSlots.addEventListener('click', handleAgendaClick);
         }
-        
-        window.addEventListener('DOMContentLoaded', main);
+        main();
         
     </script>
 
