@@ -1193,49 +1193,59 @@
             const closeBlockDayModalBtn = document.getElementById('closeBlockDayModalBtn');
             const blockDayForm = document.getElementById('blockDayForm');
 
-            registerButton.addEventListener('click', async () => {
-                const email = emailInput.value;
-                const password = passwordInput.value;
-                authError.textContent = '';
-                if (!email || !password) {
-                    authError.textContent = "Preencha e-mail e senha.";
-                    return;
-                }
+            // CÓDIGO NOVO - SUBSTITUA O BLOCO ACIMA POR ESTE
+        registerButton.addEventListener('click', async () => {
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            authError.textContent = '';
 
-                const professionalsRef = collection(db, 'professionals');
-                const q = query(professionalsRef, where("email", "==", email));
+            if (!email || !password) {
+                authError.textContent = "Preencha e-mail e senha.";
+                return;
+            }
+
+            try {
+                // 1. Consulta a coleção 'professionals' para ver se o e-mail está autorizado
+                const q = query(collection(db, 'professionals'), where("email", "==", email));
                 const professionalSnapshot = await getDocs(q);
 
+                // 2. Se não encontrar nenhum profissional com esse e-mail, nega o registro
                 if (professionalSnapshot.empty) {
-                    authError.textContent = "E-mail não autorizado. Fale com o administrador.";
+                    authError.textContent = "E-mail não autorizado. Fale com o administrador do salão.";
                     return;
                 }
 
                 const professionalDoc = professionalSnapshot.docs[0];
+                
+                // 3. Verifica se este profissional já não tem uma conta vinculada
                 if (professionalDoc.data().userId) {
-                    authError.textContent = "Este profissional já possui uma conta registrada.";
+                    authError.textContent = "Este profissional já possui uma conta registrada. Tente fazer login.";
                     return;
                 }
 
-                try {
-                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                    const user = userCredential.user;
+                // 4. Se o e-mail foi encontrado e não tem conta, cria o usuário no Authentication
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
 
-                    await updateDoc(doc(db, 'professionals', professionalDoc.id), {
-                        userId: user.uid
-                    });
-                    
-                } catch (error) {
-                    if (error.code === 'auth/email-already-in-use') {
-                        authError.textContent = "Este e-mail já está em uso.";
-                    } else if (error.code === 'auth/weak-password') {
-                        authError.textContent = "A senha deve ter no mínimo 6 caracteres.";
-                    } else {
-                        authError.textContent = "Erro ao registrar.";
-                    }
+                // 5. ATUALIZA o documento do profissional com o novo userId (A MÁGICA ACONTECE AQUI!)
+                const professionalRef = doc(db, 'professionals', professionalDoc.id);
+                await updateDoc(professionalRef, {
+                    userId: user.uid
+                });
+                
+                // O onAuthStateChanged vai automaticamente redirecionar o usuário para o app
+                
+            } catch (error) {
+                if (error.code === 'auth/email-already-in-use') {
+                    authError.textContent = "Este e-mail já está em uso. Tente fazer login.";
+                } else if (error.code === 'auth/weak-password') {
+                    authError.textContent = "A senha deve ter no mínimo 6 caracteres.";
+                } else {
+                    authError.textContent = "Ocorreu um erro ao registrar.";
                     console.error("Erro no registro:", error);
                 }
-            });
+            }
+        });
             
             loginButton.addEventListener('click', async () => {
                 const email = emailInput.value;
