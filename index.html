@@ -500,7 +500,7 @@
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, deleteUser } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, query, addDoc, doc, deleteDoc, updateDoc, Timestamp, getDocs, where, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         
@@ -518,11 +518,9 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // --- ALTERAÇÃO MULTI-SALÃO ---
-        // Adicionamos userSalonId e userRole para guardar os dados do salão do usuário logado
         let state = { 
             user: null, 
-            role: 'client', // O padrão agora é o menos privilegiado
+            role: 'client',
             userSalonId: null, 
             professionalProfile: null,
             appointments: [], professionals: [], clients: [], services: [], 
@@ -576,45 +574,31 @@
 
             doc.setFont("helvetica", "bold");
             doc.text('Questionário', 15, 98);
-            
-            const questions = {
-                alergia: "1. Possui alergia a cosméticos?",
-                alergia_qual: "Qual?",
-                doenca_pele: "2. Possui doenças de pele nas mãos ou unhas?",
-                doenca_pele_qual: "Quais?",
-                coagulacao: "3. Faz uso de anticoagulantes?",
-                diabetes: "4. Possui diabetes?",
-                infeccao: "5. Já teve infecção nas unhas após procedimento?",
-                gestante: "6. Está gestante?"
-            };
+            doc.setFont("helvetica", "normal");
 
             let yPosition = 105;
             const answers = record.answers;
             
-            const renderQuestion = (key) => {
-                if (yPosition > 260) {
+            const addPdfLine = (label, value) => {
+                if (yPosition > 260) { 
                     doc.addPage();
                     yPosition = 20;
                 }
-                const answer = (answers[key] || 'Não informado').toUpperCase();
-                const text = `${questions[key]}: ${answer}`;
-                doc.text(text, 15, yPosition);
-                yPosition += 7;
-                
-                const detailKey = `${key}_qual`;
-                if(answers[key] === 'sim' && answers[detailKey]) {
-                    doc.text(`  - ${questions[detailKey]}: ${answers[detailKey]}`, 18, yPosition);
-                    yPosition += 7;
-                }
+                const splitText = doc.splitTextToSize(`${label}: ${value}`, 180);
+                doc.text(splitText, 15, yPosition);
+                yPosition += (splitText.length * 5) + 3;
             };
-            
-            renderQuestion('alergia');
-            renderQuestion('doenca_pele');
-            renderQuestion('coagulacao');
-            renderQuestion('diabetes');
-            renderQuestion('infeccao');
-            renderQuestion('gestante');
 
+            const formatYesNo = (value) => (value || 'nao').replace('nao', 'Não').replace('sim', 'Sim');
+
+            addPdfLine("1. Possui alergia a esmaltes, removedores ou outros cosméticos?", answers.alergia === 'sim' ? `Sim - Qual? ${answers.alergia_qual || 'Não especificado'}` : 'Não');
+            addPdfLine("2. Possui doenças de pele nas mãos ou unhas (micose, psoríase, etc.)?", answers.doenca_pele === 'sim' ? `Sim - Quais? ${answers.doenca_pele_qual || 'Não especificado'}` : 'Não');
+            addPdfLine("3. Faz uso de anticoagulantes ou possui problemas de coagulação?", formatYesNo(answers.coagulacao));
+            addPdfLine("4. Possui diabetes?", formatYesNo(answers.diabetes));
+            addPdfLine("5. Já teve infecção nas unhas após procedimento estético?", formatYesNo(answers.infeccao));
+            addPdfLine("6. Está gestante?", formatYesNo(answers.gestante));
+            
+            yPosition += 5;
             doc.line(15, yPosition, 195, yPosition);
             yPosition += 8;
             doc.setFont("helvetica", "bold");
@@ -690,7 +674,6 @@
                 el.className = 'bg-white p-4 rounded-lg shadow-sm border flex justify-between items-center';
                 
                 let adminButtons = '';
-                // --- ALTERAÇÃO MULTI-SALÃO --- Apenas donos de salão podem editar/excluir
                 if (state.role === 'salonOwner') {
                     adminButtons = `
                         <button class="edit-client-btn text-blue-500 hover:text-blue-700" data-id="${client.id}"><i class="fas fa-pencil-alt"></i></button>
@@ -890,9 +873,9 @@
 
                 let statusIcon = '';
                  if (app.status === 'faturado') {
-                    statusIcon = `<i class="fas fa-dollar-sign text-green-600 text-xs absolute top-1 right-1 pointer-events-none"></i>`;
+                    statusIcon = `<i class="fas fa-dollar-sign text-green-600 text-xs absolute top-1 right-1"></i>`;
                 } else if (app.status === 'cancelado') {
-                    statusIcon = `<i class="fas fa-ban text-red-600 text-xs absolute top-1 right-1 pointer-events-none"></i>`;
+                    statusIcon = `<i class="fas fa-ban text-red-600 text-xs absolute top-1 right-1"></i>`;
                 }
 
                 if(isBlock) {
@@ -907,7 +890,7 @@
                     `;
                 } else {
                     el.innerHTML = `
-                        <div class="pointer-events-none">
+                        <div>
                             <div class="flex items-center">
                                 <p class="font-semibold text-xs text-pink-900 truncate">${client?.name || ''}</p>
                                 <button class="whatsapp-btn text-green-500 ml-2 text-xs flex-shrink-0" data-id="${client?.id}"><i class="fab fa-whatsapp"></i></button>
@@ -937,7 +920,6 @@
             }, 0);
 
             faturamentoHojeEl.textContent = `R$ ${faturamentoDeHoje.toFixed(2).replace('.', ',')}`;
-            // --- ALTERAÇÃO MULTI-SALÃO --- Visível apenas para donos de salão
             if (state.role === 'salonOwner') {
                 totalClientesEl.textContent = state.clients.length;
                 totalServicosEl.textContent = state.services.length;
@@ -1021,7 +1003,6 @@
             const adminFinancialDetails = document.getElementById('adminFinancialDetails');
             const professionalFinancialSummary = document.getElementById('professionalFinancialSummary');
 
-            // --- ALTERAÇÃO MULTI-SALÃO --- Lógica de visibilidade baseada em novos papéis
             if (isOwner) {
                 equipeBtn.style.display = 'block';
                 servicosBtn.style.display = 'block';
@@ -1041,7 +1022,6 @@
                 adminFinancialDetails.style.display = 'none';
                 professionalFinancialSummary.classList.remove('hidden');
             } else {
-                // Esconde tudo para outros tipos de usuário (ex: cliente no futuro)
                 document.querySelectorAll('.page, footer').forEach(el => el.style.display = 'none');
             }
         }
@@ -1110,6 +1090,9 @@
             const addServiceForm = document.getElementById('addServiceForm');
             const serviceModalTitle = document.getElementById('serviceModalTitle');
             const serviceIdToEdit = document.getElementById('serviceIdToEdit');
+            const serviceName = document.getElementById('serviceName');
+            const servicePrice = document.getElementById('servicePrice');
+            const serviceDuration = document.getElementById('serviceDuration');
             const professionalsList = document.getElementById('professionalsList');
             const openProfessionalModalBtn = document.getElementById('openProfessionalModalBtn');
             const closeProfessionalModalBtn = document.getElementById('closeProfessionalModalBtn');
@@ -1328,7 +1311,7 @@
                     name: serviceName.value, 
                     price: parseFloat(servicePrice.value), 
                     duration: parseInt(serviceDuration.value),
-                    salonId: state.userSalonId // --- ALTERAÇÃO MULTI-SALÃO ---
+                    salonId: state.userSalonId
                 };
                 try {
                     if (id) { await updateDoc(doc(db, 'services', id), data); } 
@@ -1359,14 +1342,13 @@
                     email: document.getElementById('professionalEmail').value,
                     commission: parseInt(document.getElementById('professionalCommission').value), 
                     serviceIds: Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(cb => cb.value),
-                    salonId: state.userSalonId // --- ALTERAÇÃO MULTI-SALÃO ---
+                    salonId: state.userSalonId
                 };
                 if (!data.name || !data.commission || !data.email) { alert('Preencha nome, e-mail e comissão.'); return; }
                 
                 try {
                     if (id) { 
-                        // Ao editar, não mudamos o salonId nem o email, apenas outros dados.
-                        const { salonId, ...updateData } = data;
+                        const { salonId, email, ...updateData } = data;
                         await updateDoc(doc(db, 'professionals', id), updateData); 
                     } else { 
                         await addDoc(collection(db, 'professionals'), data); 
@@ -1391,7 +1373,7 @@
                     phone: document.getElementById('clientPhone').value,
                     address: document.getElementById('clientAddress').value,
                     observations: document.getElementById('clientObservations').value,
-                    salonId: state.userSalonId // --- ALTERAÇÃO MULTI-SALÃO ---
+                    salonId: state.userSalonId
                 };
                 if (!data.name || !data.phone) { alert('Nome e telefone são obrigatórios.'); return; }
                 try {
@@ -1465,7 +1447,7 @@
                     serviceId: serviceId,
                     type: 'booking',
                     status: 'agendado',
-                    salonId: state.userSalonId // --- ALTERAÇÃO MULTI-SALÃO ---
+                    salonId: state.userSalonId
                 };
                 if (!data.clientId || !data.professionalId || !data.serviceId) { alert('Preencha todos os campos.'); return; }
                 try {
@@ -1591,7 +1573,7 @@
                     duration: duration,
                     reason: document.getElementById('blockReason').value || 'Bloqueado',
                     type: 'block',
-                    salonId: state.userSalonId // --- ALTERAÇÃO MULTI-SALÃO ---
+                    salonId: state.userSalonId
                 };
                 try {
                     if (id) { await updateDoc(doc(db, 'appointments', id), data); }
@@ -1674,7 +1656,7 @@
                         duration: DURATION_MINUTES,
                         reason: 'Dia bloqueado',
                         type: 'block',
-                        salonId: state.userSalonId // --- ALTERAÇÃO MULTI-SALÃO ---
+                        salonId: state.userSalonId
                     };
                     try {
                         await addDoc(collection(db, 'appointments'), data);
@@ -1878,13 +1860,17 @@
                         
                         const contentDiv = document.createElement('div');
                         contentDiv.className = 'mt-2 pt-2 border-t text-xs space-y-1';
+
+                        const answers = record.answers;
+                        const formatYesNo = (value) => (value || 'nao').replace('nao', 'Não').replace('sim', 'Sim');
+                        
                         contentDiv.innerHTML = `
-                            <p><strong>Alergias:</strong> ${record.answers.alergia === 'sim' ? record.answers.alergia_qual : 'Não'}</p>
-                            <p><strong>Doenças de Pele:</strong> ${record.answers.doenca_pele === 'sim' ? record.answers.doenca_pele_qual : 'Não'}</p>
-                            <p><strong>Problemas de Coagulação:</strong> ${record.answers.coagulacao}</p>
-                            <p><strong>Diabetes:</strong> ${record.answers.diabetes}</p>
-                            <p><strong>Infecção Prévia:</strong> ${record.answers.infeccao}</p>
-                            <p><strong>Gestante:</strong> ${record.answers.gestante}</p>
+                            <p><strong>1. Alergias:</strong> ${answers.alergia === 'sim' ? `Sim - ${answers.alergia_qual || 'Não especificado'}` : 'Não'}</p>
+                            <p><strong>2. Doenças de Pele:</strong> ${answers.doenca_pele === 'sim' ? `Sim - ${answers.doenca_pele_qual || 'Não especificado'}` : 'Não'}</p>
+                            <p><strong>3. Problemas de Coagulação:</strong> ${formatYesNo(answers.coagulacao)}</p>
+                            <p><strong>4. Diabetes:</strong> ${formatYesNo(answers.diabetes)}</p>
+                            <p><strong>5. Infecção Prévia:</strong> ${formatYesNo(answers.infeccao)}</p>
+                            <p><strong>6. Gestante:</strong> ${formatYesNo(answers.gestante)}</p>
                             <p class="mt-2"><strong>Assinatura:</strong></p>
                             <img src="${record.signature}" class="border rounded">
                         `;
@@ -1933,106 +1919,105 @@
                 });
             });
 
-            function setupDataListeners() {
-                unsubscribes.forEach(unsub => unsub());
-                unsubscribes = [];
-                // --- ALTERAÇÃO MULTI-SALÃO --- Não busca mais tudo. As buscas são feitas após o login.
+            async function getUserProfile(user) {
+                let q = query(collection(db, 'professionals'), where("userId", "==", user.uid));
+                let snapshot = await getDocs(q);
+                if (!snapshot.empty) {
+                    const doc = snapshot.docs[0];
+                    return {
+                        role: 'professional',
+                        salonId: doc.data().salonId,
+                        profile: { id: doc.id, ...doc.data() }
+                    };
+                }
+
+                q = query(collection(db, 'salons'), where("ownerId", "==", user.uid));
+                snapshot = await getDocs(q);
+                if (!snapshot.empty) {
+                    const doc = snapshot.docs[0];
+                    return {
+                        role: 'salonOwner',
+                        salonId: doc.id,
+                        profile: null
+                    };
+                }
+                
+                return null;
             }
 
-            // --- ALTERAÇÃO MULTI-SALÃO --- Lógica de login e definição de papeis totalmente refeita.
+            function setupDataListenersForSalon(salonId, role, professionalProfile) {
+                const renderAll = () => {
+                    renderServices(document.getElementById('servicesList'));
+                    renderProfessionals(document.getElementById('professionalsList'));
+                    renderClients(document.getElementById('clientsList'));
+                    renderAppointmentsForDay(document.getElementById('appointmentsForDay'), document.getElementById('appointmentsTitle'), state.selectedDate);
+                    renderDashboard(document.getElementById('agendamentosHoje'), document.getElementById('faturamentoHoje'), document.getElementById('totalClientes'), document.getElementById('totalServicos'), document.getElementById('proximosAgendamentos'));
+                    renderFinanceiro(document.getElementById('financeiroCurrentMonthYear'), document.getElementById('detalhesFinanceiro'), document.getElementById('faturamentoTotalMes'), document.getElementById('ganhosProfissionalMes'));
+                    renderCalendar(document.getElementById('calendarDays'), document.getElementById('currentMonthYear'));
+                    if(!document.getElementById('dailyView').classList.contains('hidden')) {
+                        renderDailyView(document.getElementById('dailyViewTimeSlots'), document.getElementById('dailyViewTitle'), state.selectedDate, openActionChoiceModal);
+                    }
+                };
+
+                const collectionsToListen = ["services", "clients", "professionals", "appointments"];
+
+                collectionsToListen.forEach(key => {
+                    const dataQuery = query(collection(db, key), where("salonId", "==", salonId));
+                    
+                    const unsub = onSnapshot(dataQuery, (snapshot) => {
+                        let documents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), date: doc.data().date?.toDate() }));
+                        
+                        if (role === 'professional' && key === 'appointments') {
+                            documents = documents.filter(app => app.professionalId === professionalProfile.id);
+                        }
+
+                        state[key] = documents;
+                        renderAll();
+                    }, (error) => {
+                        console.error(`Erro ao buscar ${key}:`, error);
+                    });
+                    unsubscribes.push(unsub);
+                });
+            }
+
             onAuthStateChanged(auth, async (user) => {
                 if (reminderInterval) clearInterval(reminderInterval);
                 unsubscribes.forEach(unsub => unsub());
                 unsubscribes = [];
 
-                if (user) {
-                    state.user = user;
-                    let foundRole = false;
+                try {
+                    if (user) {
+                        state.user = user;
+                        const userProfile = await getUserProfile(user);
 
-                    // 1. O usuário é um profissional?
-                    const professionalsRef = collection(db, 'professionals');
-                    let q = query(professionalsRef, where("userId", "==", user.uid));
-                    let professionalSnapshot = await getDocs(q);
-                    
-                    if (!professionalSnapshot.empty) {
-                        const professionalDoc = professionalSnapshot.docs[0];
-                        state.professionalProfile = { id: professionalDoc.id, ...professionalDoc.data() };
-                        state.role = 'professional';
-                        state.userSalonId = professionalDoc.data().salonId;
-                        reminderInterval = setInterval(checkAppointmentsForReminders, 60000);
-                        foundRole = true;
-                    }
+                        if (userProfile) {
+                            state.role = userProfile.role;
+                            state.userSalonId = userProfile.salonId;
+                            state.professionalProfile = userProfile.profile;
+                            
+                            if (userProfile.role === 'professional') {
+                                reminderInterval = setInterval(checkAppointmentsForReminders, 60000);
+                            }
 
-                    // 2. Se não for profissional, ele é um dono de salão?
-                    if (!foundRole) {
-                        const salonsRef = collection(db, 'salons');
-                        q = query(salonsRef, where("ownerId", "==", user.uid));
-                        const salonSnapshot = await getDocs(q);
-
-                        if (!salonSnapshot.empty) {
-                            const salonDoc = salonSnapshot.docs[0];
-                            state.role = 'salonOwner';
-                            state.userSalonId = salonDoc.id;
-                            foundRole = true;
-                        }
-                    }
-
-                    if (!foundRole) {
-                        // Se não tem papel, pode ser um cliente no futuro ou um erro. Por enquanto, deslogamos.
-                        console.log("Usuário sem papel definido. Deslogando.");
-                        signOut(auth);
-                        return;
-                    }
-                    
-                    // 3. Com o papel e salonId definidos, agora buscamos os dados FILTRADOS
-                    const renderAll = () => {
-                        renderServices(document.getElementById('servicesList'));
-                        renderProfessionals(document.getElementById('professionalsList'));
-                        renderClients(document.getElementById('clientsList'));
-                        renderAppointmentsForDay(document.getElementById('appointmentsForDay'), document.getElementById('appointmentsTitle'), state.selectedDate);
-                        renderDashboard(document.getElementById('agendamentosHoje'), document.getElementById('faturamentoHoje'), document.getElementById('totalClientes'), document.getElementById('totalServicos'), document.getElementById('proximosAgendamentos'));
-                        renderFinanceiro(document.getElementById('financeiroCurrentMonthYear'), document.getElementById('detalhesFinanceiro'), document.getElementById('faturamentoTotalMes'), document.getElementById('ganhosProfissionalMes'));
-                        renderCalendar(document.getElementById('calendarDays'), document.getElementById('currentMonthYear'));
-                        if(!document.getElementById('dailyView').classList.contains('hidden')) {
-                            renderDailyView(document.getElementById('dailyViewTimeSlots'), document.getElementById('dailyViewTitle'), state.selectedDate, openActionChoiceModal);
-                        }
-                    };
-
-                    const collectionsToListen = { 
-                        services: "services", 
-                        clients: "clients", 
-                        professionals: "professionals",
-                        appointments: "appointments"
-                    };
-
-                    Object.keys(collectionsToListen).forEach(key => {
-                        let dataQuery;
-                        if (state.role === 'professional' && key === 'appointments') {
-                            // Profissional só vê a própria agenda
-                            dataQuery = query(collection(db, collectionsToListen[key]), where("salonId", "==", state.userSalonId), where("professionalId", "==", state.professionalProfile.id));
+                            setupDataListenersForSalon(state.userSalonId, state.role, state.professionalProfile);
+                            updateUIVisibility();
+                            appContainer.classList.remove('hidden');
+                            loginPage.classList.add('hidden');
                         } else {
-                            // Dono do salão e outros veem tudo do salão
-                            dataQuery = query(collection(db, collectionsToListen[key]), where("salonId", "==", state.userSalonId));
+                            console.error("Usuário autenticado mas sem papel (dono/profissional). Deslogando.");
+                            signOut(auth);
                         }
-                        
-                        const unsub = onSnapshot(dataQuery, (snapshot) => {
-                            state[key] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), date: doc.data().date?.toDate() }));
-                            renderAll();
-                        });
-                        unsubscribes.push(unsub);
-                    });
-
-                    updateUIVisibility();
-                    appContainer.classList.remove('hidden'); 
-                    loginPage.classList.add('hidden');
-
-                } else {
-                    // Usuário deslogado
-                    state = { ...state, user: null, role: 'client', userSalonId: null, professionalProfile: null, appointments: [], professionals: [], clients: [], services: [] };
-                    appContainer.classList.add('hidden'); 
-                    loginPage.classList.remove('hidden');
+                    } else {
+                        state = { user: null, role: 'client', userSalonId: null, professionalProfile: null, appointments: [], professionals: [], clients: [], services: [], currentDate: new Date(), selectedDate: new Date().toISOString().split('T')[0], tempSlot: { date: null, time: null }, tempClient: { id: null, name: null, phone: null } };
+                        appContainer.classList.add('hidden'); 
+                        loginPage.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    console.error("Erro crítico na inicialização:", error);
+                    signOut(auth);
+                } finally {
+                    loadingOverlay.classList.add('hidden');
                 }
-                setTimeout(() => loadingOverlay.classList.add('hidden'), 500);
             });
 
             servicesList.addEventListener('click', (e) => {
