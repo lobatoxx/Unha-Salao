@@ -572,7 +572,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             return false;
         }
 
-        function main() {
+        export function initializeApp() {
             const loadingOverlay = document.getElementById('loadingOverlay');
             const loginPage = document.getElementById('loginPage');
             const appContainer = document.getElementById('appContainer');
@@ -1434,32 +1434,35 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     state.user = user;
                     let foundRole = false;
 
-                    const professionalsRef = collection(db, 'professionals');
-                    let q = query(professionalsRef, where("userId", "==", user.uid));
-                    let professionalSnapshot = await getDocs(q);
-                    
-                    if (!professionalSnapshot.empty) {
-                        const professionalDoc = professionalSnapshot.docs[0];
-                        state.professionalProfile = { id: professionalDoc.id, ...professionalDoc.data() };
-                        state.role = 'professional';
-                        state.userSalonId = professionalDoc.data().salonId;
-                        reminderInterval = setInterval(checkAppointmentsForReminders, 60000);
+                    // ETAPA 1: Verificar se o usuário é DONO de um salão (maior privilégio)
+                    const salonsRef = collection(db, 'salons');
+                    let q = query(salonsRef, where("ownerId", "==", user.uid));
+                    const salonSnapshot = await getDocs(q);
+
+                    if (!salonSnapshot.empty) {
+                        const salonDoc = salonSnapshot.docs[0];
+                        state.role = 'salonOwner';
+                        state.userSalonId = salonDoc.id;
                         foundRole = true;
                     }
 
+                    // ETAPA 2: Se não for dono, verificar se é um PROFISSIONAL
                     if (!foundRole) {
-                        const salonsRef = collection(db, 'salons');
-                        q = query(salonsRef, where("ownerId", "==", user.uid));
-                        const salonSnapshot = await getDocs(q);
-
-                        if (!salonSnapshot.empty) {
-                            const salonDoc = salonSnapshot.docs[0];
-                            state.role = 'salonOwner';
-                            state.userSalonId = salonDoc.id;
+                        const professionalsRef = collection(db, 'professionals');
+                        q = query(professionalsRef, where("userId", "==", user.uid));
+                        const professionalSnapshot = await getDocs(q);
+                        
+                        if (!professionalSnapshot.empty) {
+                            const professionalDoc = professionalSnapshot.docs[0];
+                            state.professionalProfile = { id: professionalDoc.id, ...professionalDoc.data() };
+                            state.role = 'professional';
+                            state.userSalonId = professionalDoc.data().salonId;
+                            reminderInterval = setInterval(checkAppointmentsForReminders, 60000);
                             foundRole = true;
                         }
                     }
 
+                    // Se após todas as verificações, o usuário não tiver papel, deslogue-o.
                     if (!foundRole) {
                         console.log("Usuário sem papel definido. Deslogando.");
                         signOut(auth);
@@ -1630,5 +1633,101 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
             appointmentsForDay.addEventListener('click', handleAgendaClick);
             dailyViewTimeSlots.addEventListener('click', handleAgendaClick);
+
+            
         }
-        main();
+        //main();
+
+        // =======================================================
+// =      FUNÇÕES PARA O MODAL DE DETALHES DO CLIENTE    =
+// =======================================================
+
+// Variável para guardar o ID do cliente que está sendo visto no modal
+let currentClientId = null;
+
+export async function openClientDetailsModal(clientId) {
+    currentClientId = clientId;
+    const modal = document.getElementById('clientDetailsModal');
+    const clientNameEl = document.getElementById('clientModalName');
+    const observationsEl = document.getElementById('clientObservations');
+    const historyListEl = document.getElementById('clientHistoryList');
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    clientNameEl.textContent = 'Carregando...';
+    observationsEl.value = '';
+    historyListEl.innerHTML = '<p class="text-gray-500">Carregando histórico...</p>';
+
+    try {
+        const { db, doc, getDoc, collection, query, where, orderBy, getDocs } = window.firebaseRefs;
+
+        const clientRef = doc(db, 'clients', clientId);
+        const clientSnap = await getDoc(clientRef);
+        if (!clientSnap.exists()) throw new Error('Cliente não encontrado');
+        
+        const clientData = clientSnap.data();
+        clientNameEl.textContent = `Detalhes de: ${clientData.name}`;
+        observationsEl.value = clientData.observations || '';
+
+        const appointmentsQuery = query(
+            collection(db, 'appointments'), 
+            where("clientId", "==", clientId),
+            orderBy("date", "desc")
+        );
+        const appointmentsSnapshot = await getDocs(appointmentsQuery);
+
+        if (appointmentsSnapshot.empty) {
+            historyListEl.innerHTML = '<p class="text-gray-500">Nenhum atendimento encontrado.</p>';
+            return;
+        }
+
+        const historyPromises = appointmentsSnapshot.docs.map(async (appointmentDoc) => {
+            const appointmentData = appointmentDoc.data();
+            const serviceSnap = await getDoc(doc(db, 'services', appointmentData.serviceId));
+            const professionalSnap = await getDoc(doc(db, 'professionals', appointmentData.professionalId));
+            
+            const serviceName = serviceSnap.exists() ? serviceSnap.data().name : 'Serviço desconhecido';
+            const professionalName = professionalSnap.exists() ? professionalSnap.data().name : 'Profissional desconhecido';
+            const appointmentDate = new Date(appointmentData.date).toLocaleDateString('pt-BR');
+
+            return `
+                <li class="p-3 bg-gray-50 rounded-md border">
+                    <p class="font-semibold">${serviceName}</p>
+                    <p class="text-sm text-gray-600">Com: ${professionalName}</p>
+                    <p class="text-sm text-gray-500 text-right">Data: ${appointmentDate}</p>
+                </li>
+            `;
+        });
+
+        const historyItemsHTML = await Promise.all(historyPromises);
+        historyListEl.innerHTML = historyItemsHTML.join('');
+
+    } catch (error) {
+        console.error("Erro ao buscar detalhes do cliente:", error);
+        alert('Não foi possível carregar os detalhes do cliente.');
+        modal.classList.add('hidden');
+    }
+}
+
+async function saveClientObservations() {
+    if (!currentClientId) return;
+
+    const { db, doc, updateDoc } = window.firebaseRefs;
+    const observationsEl = document.getElementById('clientObservations');
+    const saveBtn = document.getElementById('saveObservationsBtn');
+    const originalBtnText = saveBtn.textContent;
+    saveBtn.textContent = 'Salvando...';
+    saveBtn.disabled = true;
+
+    try {
+        const clientRef = doc(db, 'clients', currentClientId);
+        await updateDoc(clientRef, { observations: observationsEl.value });
+        alert('Observações salvas com sucesso!');
+    } catch (error) {
+        console.error("Erro ao salvar observações:", error);
+        alert('Falha ao salvar as observações.');
+    } finally {
+        saveBtn.textContent = originalBtnText;
+        saveBtn.disabled = false;
+    }
+}
