@@ -3,12 +3,11 @@ const CACHE_NAME = 'belezaja-cache-v1';
 
 // Ficheiros a serem guardados em cache para funcionamento offline
 const urlsToCache = [
-  '/',
-  '/index.html',
-  'https://cdn-tailwindcss.vercel.app/',
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'
-];
+   '/',
+   '/index.html',
+   '/src/style.css' // <-- CORREÇÃO
+   // Remova os links externos
+ ];
 
 // Evento de instalação: abre o cache e adiciona os ficheiros principais
 self.addEventListener('install', event => {
