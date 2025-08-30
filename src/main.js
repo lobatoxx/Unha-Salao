@@ -1,1 +1,2 @@
-javascript // src/main.js import './style.css'; 
+// src/main.js
+import './style.css';
