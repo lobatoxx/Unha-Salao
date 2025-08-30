@@ -25,3 +25,4 @@ dist-ssr
 
 # System files
 npm-cache
+package-lock.json
