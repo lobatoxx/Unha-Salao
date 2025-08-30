@@ -1,17 +1,13 @@
-// tailwind.config.js (Verificação)
+// tailwind.config.js
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
     "./index.html",
     "./admin.html",
-    "./src/**/*.{js,ts,jsx,tsx}", // Garante que ele olhe dentro da pasta src
+    "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-    extend: {
-      colors: {
-        'custom-pink': '#EC4899',
-      },
-    },
+    extend: {},
   },
   plugins: [],
 }
