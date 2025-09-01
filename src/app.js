@@ -1434,32 +1434,35 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     state.user = user;
                     let foundRole = false;
 
-                    const professionalsRef = collection(db, 'professionals');
-                    let q = query(professionalsRef, where("userId", "==", user.uid));
-                    let professionalSnapshot = await getDocs(q);
-                    
-                    if (!professionalSnapshot.empty) {
-                        const professionalDoc = professionalSnapshot.docs[0];
-                        state.professionalProfile = { id: professionalDoc.id, ...professionalDoc.data() };
-                        state.role = 'professional';
-                        state.userSalonId = professionalDoc.data().salonId;
-                        reminderInterval = setInterval(checkAppointmentsForReminders, 60000);
+                    // ETAPA 1: Verificar se o usuário é DONO de um salão (maior privilégio)
+                    const salonsRef = collection(db, 'salons');
+                    let q = query(salonsRef, where("ownerId", "==", user.uid));
+                    const salonSnapshot = await getDocs(q);
+
+                    if (!salonSnapshot.empty) {
+                        const salonDoc = salonSnapshot.docs[0];
+                        state.role = 'salonOwner';
+                        state.userSalonId = salonDoc.id;
                         foundRole = true;
                     }
 
+                    // ETAPA 2: Se não for dono, verificar se é um PROFISSIONAL
                     if (!foundRole) {
-                        const salonsRef = collection(db, 'salons');
-                        q = query(salonsRef, where("ownerId", "==", user.uid));
-                        const salonSnapshot = await getDocs(q);
-
-                        if (!salonSnapshot.empty) {
-                            const salonDoc = salonSnapshot.docs[0];
-                            state.role = 'salonOwner';
-                            state.userSalonId = salonDoc.id;
+                        const professionalsRef = collection(db, 'professionals');
+                        q = query(professionalsRef, where("userId", "==", user.uid));
+                        const professionalSnapshot = await getDocs(q);
+                        
+                        if (!professionalSnapshot.empty) {
+                            const professionalDoc = professionalSnapshot.docs[0];
+                            state.professionalProfile = { id: professionalDoc.id, ...professionalDoc.data() };
+                            state.role = 'professional';
+                            state.userSalonId = professionalDoc.data().salonId;
+                            reminderInterval = setInterval(checkAppointmentsForReminders, 60000);
                             foundRole = true;
                         }
                     }
 
+                    // Se após todas as verificações, o usuário não tiver papel, deslogue-o.
                     if (!foundRole) {
                         console.log("Usuário sem papel definido. Deslogando.");
                         signOut(auth);
