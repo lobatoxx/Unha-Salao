@@ -8,18 +8,18 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       manifest: {
-        name: 'BelezaJá - Gestão Completa',
-        short_name: 'BelezaJá',
-        description: 'Aplicativo de gestão completa para salões de beleza.',
-        theme_color: '#EC4899',
+        name: 'Schedule - Gestão Completa',
+        short_name: 'Schedule',
+        description: 'Aplicativo de gestão completa para salões e barbearias.',
+        theme_color: '#374151',
         icons: [
           {
-            src: 'https://placehold.co/192x192/EC4899/FFFFFF?text=BJ',
+            src: 'https://placehold.co/192x192/374151/FFFFFF?text=SC',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: 'https://placehold.co/512x512/EC4899/FFFFFF?text=BJ',
+            src: 'https://placehold.co/512x512/374151/FFFFFF?text=SC',
             sizes: '512x512',
             type: 'image/png'
           }
