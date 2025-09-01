@@ -1,0 +1,21 @@
+{
+  "name": "BelezaJá Gestão",
+  "short_name": "Gestão BJ",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#ec4899",
+  "description": "Gestão completa para seu salão de beleza.",
+  "icons": [
+    {
+      "src": "https://placehold.co/192x192/EC4899/FFFFFF?text=BJ",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://placehold.co/512x512/EC4899/FFFFFF?text=BJ",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
