@@ -572,7 +572,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             return false;
         }
 
-        function main() {
+        export function initializeApp() {
             const loadingOverlay = document.getElementById('loadingOverlay');
             const loginPage = document.getElementById('loginPage');
             const appContainer = document.getElementById('appContainer');
@@ -1634,4 +1634,4 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             appointmentsForDay.addEventListener('click', handleAgendaClick);
             dailyViewTimeSlots.addEventListener('click', handleAgendaClick);
         }
-        main();
+       
