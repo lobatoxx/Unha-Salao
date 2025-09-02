@@ -935,5 +935,5 @@ function main() {
     dailyViewTimeSlots.addEventListener('click', handleAgendaClick);
 }
 
-main();
+document.addEventListener('DOMContentLoaded', main);
 
