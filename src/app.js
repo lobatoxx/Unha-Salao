@@ -130,6 +130,44 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 doc.save(fileName);
             }
         }
+
+        function hasScheduleConflict(conflictDetails) {
+            const { id: appointmentId, professionalId, date, serviceId, duration: blockDuration } = conflictDetails;
+            
+            let duration = 0;
+            if (serviceId) {
+                const service = state.services.find(s => s.id === serviceId);
+                if (!service) return false;
+                duration = service.duration;
+            } else {
+                duration = blockDuration;
+            }
+            
+            const newStartTime = date.getTime();
+            const newEndTime = newStartTime + (duration * 60000);
+
+            for (const existingApp of state.appointments) {
+                if (existingApp.professionalId !== professionalId) continue;
+                if (appointmentId && existingApp.id === appointmentId) continue;
+
+                let existingDuration = 0;
+                if (existingApp.type === 'block') {
+                    existingDuration = existingApp.duration;
+                } else {
+                    const existingService = state.services.find(s => s.id === existingApp.serviceId);
+                    if (!existingService) continue;
+                    existingDuration = existingService.duration;
+                }
+                
+                const existingStartTime = existingApp.date.getTime();
+                const existingEndTime = existingStartTime + (existingDuration * 60000);
+
+                if (newStartTime < existingEndTime && existingStartTime < newEndTime) {
+                    return true;
+                }
+            }
+            return false;
+        }
         
         function updateSalonHeader() {
             const salonLogoEl = document.getElementById('salonLogo');
@@ -1400,10 +1438,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     state.user = user;
                     let foundRole = false;
             
-                    // Busca pelo perfil de profissional
                     const professionalsRef = collection(db, 'professionals');
-                    let qProf = query(professionalsRef, where("userId", "==", user.uid));
-                    let professionalSnapshot = await getDocs(qProf);
+                    const q = query(professionalsRef, where("userId", "==", user.uid));
+                    const professionalSnapshot = await getDocs(q);
                     
                     if (!professionalSnapshot.empty) {
                         const professionalDoc = professionalSnapshot.docs[0];
@@ -1414,11 +1451,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                         foundRole = true;
                     }
             
-                    // Se não for profissional, busca pelo perfil de dono de salão
                     if (!foundRole) {
                         const salonsRef = collection(db, 'salons');
-                        let qSalon = query(salonsRef, where("ownerId", "==", user.uid));
-                        const salonSnapshot = await getDocs(qSalon);
+                        const q = query(salonsRef, where("ownerId", "==", user.uid));
+                        const salonSnapshot = await getDocs(q);
             
                         if (!salonSnapshot.empty) {
                             const salonDoc = salonSnapshot.docs[0];
@@ -1428,14 +1464,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                         }
                     }
             
-                    // Se não encontrou papel, desloga
                     if (!foundRole) {
                         console.log("Usuário sem papel definido. Deslogando.");
                         signOut(auth);
                         return;
                     }
             
-                    // Busca os dados do salão (incluindo o logo)
                     if (state.userSalonId) {
                         const salonRef = doc(db, 'salons', state.userSalonId);
                         const salonSnap = await getDoc(salonRef);
@@ -1449,7 +1483,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     }
                     
                     const renderAll = () => {
-                        updateSalonHeader(); // <-- Atualiza o cabeçalho com o logo/nome
+                        updateSalonHeader();
                         renderServices(document.getElementById('servicesList'));
                         renderProfessionals(document.getElementById('professionalsList'));
                         renderClients(document.getElementById('clientsList'));
@@ -1470,20 +1504,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     };
             
                     Object.keys(collectionsToListen).forEach(key => {
-                        let dataQuery;
-                        // MANTENDO A LÓGICA ANTIGA DE BUSCA PARA EVITAR PROBLEMAS
-                        if (state.role === 'professional' && key === 'appointments') {
-                             dataQuery = query(collection(db, collectionsToListen[key]), where("professionalId", "==", state.professionalProfile.id));
-                        } else {
-                           dataQuery = collection(db, collectionsToListen[key]);
-                        }
-                        
-                        const unsub = onSnapshot(dataQuery, (snapshot) => {
+                        const unsub = onSnapshot(collection(db, collectionsToListen[key]), (snapshot) => {
                             state[key] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), date: doc.data().date?.toDate() }));
-                            // FILTRO ADICIONAL NO LADO DO CLIENTE (SE NECESSÁRIO)
-                            if(state.role === 'salonOwner' && key !== 'appointments'){
-                                state[key] = state[key].filter(item => item.salonId === state.userSalonId);
-                            }
                             renderAll();
                         });
                         unsubscribes.push(unsub);
