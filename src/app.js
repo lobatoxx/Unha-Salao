@@ -1621,4 +1621,3 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
         }
         main();
 
-// teste
