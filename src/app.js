@@ -1337,15 +1337,26 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
                 try {
                     const clientRef = doc(db, 'clients', clientId);
-                    await updateDoc(clientRef, {
-                        anamnesisHistory: arrayUnion(newRecord)
-                    });
-                    
-                    await updateDoc(doc(db, 'appointments', appointmentId), {
-                        status: 'concluido'
-                    });
+                    const clientSnap = await getDoc(clientRef);
 
-                    anamnesisModal.classList.add('hidden');
+                    if (clientSnap.exists()) {
+                        const existingHistory = clientSnap.data().anamnesisHistory || [];
+                        const updatedHistory = [...existingHistory, newRecord];
+
+                        await updateDoc(clientRef, {
+                            anamnesisHistory: updatedHistory
+                        });
+                        
+                        await updateDoc(doc(db, 'appointments', appointmentId), {
+                            status: 'concluido'
+                        });
+
+                        anamnesisModal.classList.add('hidden');
+                    } else {
+                        console.error("Cliente não encontrado para salvar anamnese.");
+                        alert("Ocorreu um erro: cliente não encontrado.");
+                    }
+
                 } catch (err) {
                     console.error("Erro ao salvar ficha:", err);
                     alert("Ocorreu um erro ao salvar a ficha. Tente novamente.");
@@ -1504,8 +1515,16 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     };
             
                     Object.keys(collectionsToListen).forEach(key => {
-                        const unsub = onSnapshot(collection(db, collectionsToListen[key]), (snapshot) => {
-                            state[key] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), date: doc.data().date?.toDate() }));
+                        const collectionName = collectionsToListen[key];
+                        const collectionRef = collection(db, collectionName);
+                        const q = query(collectionRef, where("salonId", "==", state.userSalonId));
+
+                        const unsub = onSnapshot(q, (snapshot) => {
+                            state[key] = snapshot.docs.map(doc => ({ 
+                                id: doc.id, 
+                                ...doc.data(), 
+                                date: doc.data().date?.toDate() 
+                            }));
                             renderAll();
                         });
                         unsubscribes.push(unsub);
@@ -1642,4 +1661,3 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             dailyViewTimeSlots.addEventListener('click', handleAgendaClick);
         }
         main();
-
