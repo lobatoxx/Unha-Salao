@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, deleteUser } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, query, addDoc, doc, deleteDoc, updateDoc, Timestamp, getDocs, where, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, query, addDoc, doc, deleteDoc, updateDoc, Timestamp, getDocs, where, arrayUnion, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         
         const firebaseConfig = {
@@ -21,6 +21,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             user: null, 
             role: 'client',
             userSalonId: null, 
+            salonInfo: null, // Armazena informações do salão (nome, logoUrl, etc.)
             professionalProfile: null,
             appointments: [], professionals: [], clients: [], services: [], 
             currentDate: new Date(),
@@ -130,6 +131,26 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             }
         }
         
+        function updateSalonHeader() {
+            const salonLogoEl = document.getElementById('salonLogo');
+            const salonTitleEl = document.getElementById('salonTitle');
+
+            if (state.salonInfo && state.salonInfo.logoUrl) {
+                salonLogoEl.src = state.salonInfo.logoUrl;
+                salonLogoEl.classList.remove('hidden');
+                salonTitleEl.classList.add('hidden');
+            } else if (state.salonInfo && state.salonInfo.name) {
+                salonLogoEl.classList.add('hidden');
+                salonTitleEl.textContent = state.salonInfo.name;
+                salonTitleEl.classList.remove('hidden');
+            } else {
+                // Fallback
+                salonLogoEl.classList.add('hidden');
+                salonTitleEl.textContent = 'Painel';
+                salonTitleEl.classList.remove('hidden');
+            }
+        }
+
         function renderServices(servicesList) {
             if (!servicesList) return;
             servicesList.innerHTML = '';
@@ -243,7 +264,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                         el.innerHTML = `
                             <div>
                                 <div class="flex items-center pointer-events-none">
-                                    <p class="font-bold text-pink-600">${startTimeStr} - ${endTimeStr}</p>
+                                    <p class="font-bold text-blue-600">${startTimeStr} - ${endTimeStr}</p>
                                     ${statusIcon}
                                 </div>
                                 <div class="flex items-center">
@@ -278,12 +299,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             for (let i = 1; i <= daysInMonth; i++) {
                 const dayEl = document.createElement('div');
                 const dateString = new Date(year, month, i).toISOString().split('T')[0];
-                dayEl.className = 'calendar-day flex items-center justify-center rounded-full cursor-pointer hover:bg-pink-100';
+                dayEl.className = 'calendar-day flex items-center justify-center rounded-full cursor-pointer hover:bg-blue-100';
                 dayEl.textContent = i;
                 dayEl.dataset.date = dateString;
                 const today = new Date();
                 if (i === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
-                    dayEl.classList.add('bg-pink-500', 'text-white');
+                    dayEl.classList.add('bg-blue-600', 'text-white');
                 }
                 if (dateString === state.selectedDate) {
                     dayEl.classList.add('day-selected');
@@ -352,9 +373,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 const left = columnIndex * width;
                 
                 const el = document.createElement('div');
-                let bgColor = isBlock ? 'bg-gray-200' : 'bg-pink-100';
-                let borderColor = isBlock ? 'border-gray-500' : 'border-pink-500';
-                let hoverBgColor = isBlock ? 'hover:bg-gray-300' : 'hover:bg-pink-200';
+                let bgColor = isBlock ? 'bg-gray-200' : 'bg-blue-100';
+                let borderColor = isBlock ? 'border-gray-500' : 'border-blue-500';
+                let hoverBgColor = isBlock ? 'hover:bg-gray-300' : 'hover:bg-blue-200';
                 if (app.status === 'cancelado') {
                     bgColor = 'bg-gray-100';
                     borderColor = 'border-gray-300';
@@ -391,11 +412,11 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     el.innerHTML = `
                         <div>
                             <div class="flex items-center">
-                                <p class="font-semibold text-xs text-pink-900 truncate">${client?.name || ''}</p>
+                                <p class="font-semibold text-xs text-blue-900 truncate">${client?.name || ''}</p>
                                 <button class="whatsapp-btn text-green-500 ml-2 text-xs flex-shrink-0" data-id="${client?.id}"><i class="fab fa-whatsapp"></i></button>
                             </div>
-                            <p class="text-xs text-pink-700 truncate">${service?.name || ''}</p>
-                            <p class="text-xs text-pink-600 truncate">${professional?.name || ''}</p>
+                            <p class="text-xs text-blue-700 truncate">${service?.name || ''}</p>
+                            <p class="text-xs text-blue-600 truncate">${professional?.name || ''}</p>
                         </div>
                         ${statusIcon}
                     `;
@@ -434,7 +455,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     const el = document.createElement('div');
                     el.className = 'bg-white p-3 rounded-lg shadow-sm border';
                     el.innerHTML = `
-                        <p class="font-bold text-pink-600">${app.date.toLocaleDateString('pt-BR')} - ${app.date.toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}</p>
+                        <p class="font-bold text-blue-600">${app.date.toLocaleDateString('pt-BR')} - ${app.date.toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}</p>
                         <p class="font-semibold text-gray-800">${client}</p>
                         <p class="text-sm text-gray-600">${service}</p>`;
                     proximosAgendamentosEl.appendChild(el);
@@ -524,54 +545,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 document.querySelectorAll('.page, footer').forEach(el => el.style.display = 'none');
             }
         }
-
-        let confirmAction = () => {};
-        function showConfirmModal(message, onConfirm) {
-            const confirmModalText = document.getElementById('confirmModalText');
-            const confirmModal = document.getElementById('confirmModal');
-            confirmModalText.textContent = message;
-            confirmModal.classList.remove('hidden');
-            confirmAction = onConfirm;
-        }
-
-        function hasScheduleConflict(conflictDetails) {
-            const { id: appointmentId, professionalId, date, serviceId, duration: blockDuration } = conflictDetails;
-            
-            let duration = 0;
-            if (serviceId) {
-                const service = state.services.find(s => s.id === serviceId);
-                if (!service) return false;
-                duration = service.duration;
-            } else {
-                duration = blockDuration;
-            }
-            
-            const newStartTime = date.getTime();
-            const newEndTime = newStartTime + (duration * 60000);
-
-            for (const existingApp of state.appointments) {
-                if (existingApp.professionalId !== professionalId) continue;
-                if (appointmentId && existingApp.id === appointmentId) continue;
-
-                let existingDuration = 0;
-                if (existingApp.type === 'block') {
-                    existingDuration = existingApp.duration;
-                } else {
-                    const existingService = state.services.find(s => s.id === existingApp.serviceId);
-                    if (!existingService) continue;
-                    existingDuration = existingService.duration;
-                }
-                
-                const existingStartTime = existingApp.date.getTime();
-                const existingEndTime = existingStartTime + (existingDuration * 60000);
-
-                if (newStartTime < existingEndTime && existingStartTime < newEndTime) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
+        
         function main() {
             const loadingOverlay = document.getElementById('loadingOverlay');
             const loginPage = document.getElementById('loginPage');
@@ -675,7 +649,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             const closeBlockDayModalBtn = document.getElementById('closeBlockDayModalBtn');
             const blockDayForm = document.getElementById('blockDayForm');
 
-            // CÓDIGO NOVO - SUBSTITUA O BLOCO ACIMA POR ESTE
         registerButton.addEventListener('click', async () => {
             const email = emailInput.value;
             const password = passwordInput.value;
@@ -687,11 +660,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             }
 
             try {
-                // 1. Consulta a coleção 'professionals' para ver se o e-mail está autorizado
                 const q = query(collection(db, 'professionals'), where("email", "==", email));
                 const professionalSnapshot = await getDocs(q);
 
-                // 2. Se não encontrar nenhum profissional com esse e-mail, nega o registro
                 if (professionalSnapshot.empty) {
                     authError.textContent = "E-mail não autorizado. Fale com o administrador do salão.";
                     return;
@@ -699,23 +670,18 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
                 const professionalDoc = professionalSnapshot.docs[0];
                 
-                // 3. Verifica se este profissional já não tem uma conta vinculada
                 if (professionalDoc.data().userId) {
                     authError.textContent = "Este profissional já possui uma conta registrada. Tente fazer login.";
                     return;
                 }
 
-                // 4. Se o e-mail foi encontrado e não tem conta, cria o usuário no Authentication
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
 
-                // 5. ATUALIZA o documento do profissional com o novo userId (A MÁGICA ACONTECE AQUI!)
                 const professionalRef = doc(db, 'professionals', professionalDoc.id);
                 await updateDoc(professionalRef, {
                     userId: user.uid
                 });
-                
-                // O onAuthStateChanged vai automaticamente redirecionar o usuário para o app
                 
             } catch (error) {
                 if (error.code === 'auth/email-already-in-use') {
@@ -814,9 +780,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 e.preventDefault();
                 const id = serviceIdToEdit.value;
                 const data = { 
-                    name: serviceName.value, 
-                    price: parseFloat(servicePrice.value), 
-                    duration: parseInt(serviceDuration.value),
+                    name: document.getElementById('serviceName').value, 
+                    price: parseFloat(document.getElementById('servicePrice').value), 
+                    duration: parseInt(document.getElementById('serviceDuration').value),
                     salonId: state.userSalonId
                 };
                 try {
@@ -834,7 +800,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 document.getElementById('professionalEmail').classList.remove('bg-gray-100');
                 professionalServicesChecklist.innerHTML = '';
                 state.services.forEach(service => {
-                    professionalServicesChecklist.innerHTML += `<div class="flex items-center"><input id="service-add-${service.id}" name="services-add" value="${service.id}" type="checkbox" class="h-4 w-4 text-pink-600 rounded"><label for="service-add-${service.id}" class="ml-2 text-sm">${service.name}</label></div>`;
+                    professionalServicesChecklist.innerHTML += `<div class="flex items-center"><input id="service-add-${service.id}" name="services-add" value="${service.id}" type="checkbox" class="h-4 w-4 text-blue-600 rounded"><label for="service-add-${service.id}" class="ml-2 text-sm">${service.name}</label></div>`;
                 });
                 addProfessionalModal.classList.remove('hidden');
             });
@@ -892,7 +858,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
             function openAppointmentModal(date, appointmentId = null) {
                 addAppointmentForm.reset();
-                appointmentDate.value = date;
+                document.getElementById('appointmentDate').value = date;
                 deleteAppointmentBtn.classList.add('hidden');
                 editAppointmentActions.classList.add('hidden');
                 startAppointmentAction.classList.add('hidden');
@@ -912,7 +878,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     const app = state.appointments.find(a => a.id === appointmentId);
                     appointmentModalTitle.textContent = 'Editar Agendamento';
                     appointmentIdToEdit.value = app.id;
-                    appointmentTime.value = app.date.toTimeString().substring(0, 5);
+                    document.getElementById('appointmentTime').value = app.date.toTimeString().substring(0, 5);
                     clientSelect.value = app.clientId;
                     profSelect.value = app.professionalId;
                     serviceSelect.value = app.serviceId;
@@ -937,9 +903,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             addAppointmentForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const id = appointmentIdToEdit.value;
-                const dateTime = new Date(`${appointmentDate.value}T${appointmentTime.value}`);
-                const professionalId = appointmentProfessional.value;
-                const serviceId = appointmentService.value;
+                const dateTime = new Date(`${document.getElementById('appointmentDate').value}T${document.getElementById('appointmentTime').value}`);
+                const professionalId = document.getElementById('appointmentProfessional').value;
+                const serviceId = document.getElementById('appointmentService').value;
 
                 if (hasScheduleConflict({ id, professionalId, date: dateTime, serviceId })) {
                     alert("Conflito de agenda! Esta profissional já está ocupada neste horário.");
@@ -948,7 +914,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
                 const data = {
                     date: Timestamp.fromDate(dateTime),
-                    clientId: appointmentClient.value,
+                    clientId: document.getElementById('appointmentClient').value,
                     professionalId: professionalId,
                     serviceId: serviceId,
                     type: 'booking',
@@ -1279,10 +1245,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 anamnesisForm.reset();
                 signaturePad.clear();
                 
-                anamnesisAppointmentId.value = app.id;
-                anamnesisClientId.value = client.id;
-                anamnesisClientName.textContent = client.name;
-                anamnesisClientPhone.textContent = client.phone;
+                document.getElementById('anamnesisAppointmentId').value = app.id;
+                document.getElementById('anamnesisClientId').value = client.id;
+                document.getElementById('anamnesisClientName').textContent = client.name;
+                document.getElementById('anamnesisClientPhone').textContent = client.phone;
 
                 if (client.anamnesisHistory && client.anamnesisHistory.length > 0) {
                     const lastRecord = client.anamnesisHistory[client.anamnesisHistory.length - 1];
@@ -1317,8 +1283,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     return;
                 }
 
-                const clientId = anamnesisClientId.value;
-                const appointmentId = anamnesisAppointmentId.value;
+                const clientId = document.getElementById('anamnesisClientId').value;
+                const appointmentId = document.getElementById('anamnesisAppointmentId').value;
                 const formData = new FormData(anamnesisForm);
                 const answers = {};
                 for (let [key, value] of formData.entries()) {
@@ -1419,9 +1385,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
                     document.getElementById(pageId)?.classList.add('active');
                     document.querySelectorAll('.nav-btn').forEach(nav => {
-                        nav.classList.remove('text-pink-500','font-bold'); nav.classList.add('text-gray-400'); nav.querySelector('p').classList.remove('font-bold');
+                        nav.classList.remove('text-blue-600','font-bold'); nav.classList.add('text-gray-400'); nav.querySelector('p').classList.remove('font-bold');
                     });
-                    e.currentTarget.classList.add('text-pink-500'); e.currentTarget.classList.remove('text-gray-400'); e.currentTarget.querySelector('p').classList.add('font-bold');
+                    e.currentTarget.classList.add('text-blue-600'); e.currentTarget.classList.remove('text-gray-400'); e.currentTarget.querySelector('p').classList.add('font-bold');
                 });
             });
 
@@ -1429,14 +1395,15 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 if (reminderInterval) clearInterval(reminderInterval);
                 unsubscribes.forEach(unsub => unsub());
                 unsubscribes = [];
-
+            
                 if (user) {
                     state.user = user;
                     let foundRole = false;
-
+            
+                    // Busca pelo perfil de profissional
                     const professionalsRef = collection(db, 'professionals');
-                    let q = query(professionalsRef, where("userId", "==", user.uid));
-                    let professionalSnapshot = await getDocs(q);
+                    let qProf = query(professionalsRef, where("userId", "==", user.uid));
+                    let professionalSnapshot = await getDocs(qProf);
                     
                     if (!professionalSnapshot.empty) {
                         const professionalDoc = professionalSnapshot.docs[0];
@@ -1446,12 +1413,13 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                         reminderInterval = setInterval(checkAppointmentsForReminders, 60000);
                         foundRole = true;
                     }
-
+            
+                    // Se não for profissional, busca pelo perfil de dono de salão
                     if (!foundRole) {
                         const salonsRef = collection(db, 'salons');
-                        q = query(salonsRef, where("ownerId", "==", user.uid));
-                        const salonSnapshot = await getDocs(q);
-
+                        let qSalon = query(salonsRef, where("ownerId", "==", user.uid));
+                        const salonSnapshot = await getDocs(qSalon);
+            
                         if (!salonSnapshot.empty) {
                             const salonDoc = salonSnapshot.docs[0];
                             state.role = 'salonOwner';
@@ -1459,14 +1427,29 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                             foundRole = true;
                         }
                     }
-
+            
+                    // Se não encontrou papel, desloga
                     if (!foundRole) {
                         console.log("Usuário sem papel definido. Deslogando.");
                         signOut(auth);
                         return;
                     }
+            
+                    // Busca os dados do salão (incluindo o logo)
+                    if (state.userSalonId) {
+                        const salonRef = doc(db, 'salons', state.userSalonId);
+                        const salonSnap = await getDoc(salonRef);
+                        if (salonSnap.exists()) {
+                            state.salonInfo = salonSnap.data();
+                        } else {
+                             console.error("Salão não encontrado para o ID:", state.userSalonId);
+                             signOut(auth);
+                             return;
+                        }
+                    }
                     
                     const renderAll = () => {
+                        updateSalonHeader(); // <-- Atualiza o cabeçalho com o logo/nome
                         renderServices(document.getElementById('servicesList'));
                         renderProfessionals(document.getElementById('professionalsList'));
                         renderClients(document.getElementById('clientsList'));
@@ -1478,35 +1461,40 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                             renderDailyView(document.getElementById('dailyViewTimeSlots'), document.getElementById('dailyViewTitle'), state.selectedDate, openActionChoiceModal);
                         }
                     };
-
+            
                     const collectionsToListen = { 
                         services: "services", 
                         clients: "clients", 
                         professionals: "professionals",
                         appointments: "appointments"
                     };
-
+            
                     Object.keys(collectionsToListen).forEach(key => {
                         let dataQuery;
+                        // MANTENDO A LÓGICA ANTIGA DE BUSCA PARA EVITAR PROBLEMAS
                         if (state.role === 'professional' && key === 'appointments') {
-                            dataQuery = query(collection(db, collectionsToListen[key]), where("salonId", "==", state.userSalonId), where("professionalId", "==", state.professionalProfile.id));
+                             dataQuery = query(collection(db, collectionsToListen[key]), where("professionalId", "==", state.professionalProfile.id));
                         } else {
-                            dataQuery = query(collection(db, collectionsToListen[key]), where("salonId", "==", state.userSalonId));
+                           dataQuery = collection(db, collectionsToListen[key]);
                         }
                         
                         const unsub = onSnapshot(dataQuery, (snapshot) => {
                             state[key] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), date: doc.data().date?.toDate() }));
+                            // FILTRO ADICIONAL NO LADO DO CLIENTE (SE NECESSÁRIO)
+                            if(state.role === 'salonOwner' && key !== 'appointments'){
+                                state[key] = state[key].filter(item => item.salonId === state.userSalonId);
+                            }
                             renderAll();
                         });
                         unsubscribes.push(unsub);
                     });
-
+            
                     updateUIVisibility();
                     appContainer.classList.remove('hidden'); 
                     loginPage.classList.add('hidden');
-
+            
                 } else {
-                    state = { ...state, user: null, role: 'client', userSalonId: null, professionalProfile: null, appointments: [], professionals: [], clients: [], services: [] };
+                    state = { ...state, user: null, role: 'client', userSalonId: null, professionalProfile: null, salonInfo: null, appointments: [], professionals: [], clients: [], services: [] };
                     appContainer.classList.add('hidden'); 
                     loginPage.classList.remove('hidden');
                 }
@@ -1523,9 +1511,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     if (serviceToEdit) {
                         serviceModalTitle.textContent = 'Editar Serviço';
                         serviceIdToEdit.value = serviceId;
-                        serviceName.value = serviceToEdit.name;
-                        servicePrice.value = serviceToEdit.price;
-                        serviceDuration.value = serviceToEdit.duration;
+                        document.getElementById('serviceName').value = serviceToEdit.name;
+                        document.getElementById('servicePrice').value = serviceToEdit.price;
+                        document.getElementById('serviceDuration').value = serviceToEdit.duration;
                         addServiceModal.classList.remove('hidden');
                     }
                 }
@@ -1593,7 +1581,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                         professionalServicesChecklist.innerHTML = '';
                         state.services.forEach(service => {
                             const isChecked = profToEdit.serviceIds?.includes(service.id) ? 'checked' : '';
-                            professionalServicesChecklist.innerHTML += `<div class="flex items-center"><input id="service-edit-${service.id}" name="services-edit" value="${service.id}" type="checkbox" ${isChecked} class="h-4 w-4 text-pink-600 rounded"><label for="service-edit-${service.id}" class="ml-2 text-sm">${service.name}</label></div>`;
+                            professionalServicesChecklist.innerHTML += `<div class="flex items-center"><input id="service-edit-${service.id}" name="services-edit" value="${service.id}" type="checkbox" ${isChecked} class="h-4 w-4 text-blue-600 rounded"><label for="service-edit-${service.id}" class="ml-2 text-sm">${service.name}</label></div>`;
                         });
                         addProfessionalModal.classList.remove('hidden');
                     }
@@ -1632,3 +1620,4 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             dailyViewTimeSlots.addEventListener('click', handleAgendaClick);
         }
         main();
+
