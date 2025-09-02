@@ -43,7 +43,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
         let reminderInterval = null;
         let signaturePad = null;
         
-        // Função que estava faltando
         function showConfirmModal(message, onConfirm) {
             const confirmModal = document.getElementById('confirmModal');
             const confirmModalText = document.getElementById('confirmModalText');
@@ -79,8 +78,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     // Converte a URL para o formato de dados
                     const logoDataUrl = await toDataURL(state.salonInfo.logoUrl);
                     
-                    // Adiciona a imagem ao PDF
-                    doc.addImage(logoDataUrl, 'PNG', 15, 10, 60, 20);
+                    // Adiciona a imagem ao PDF com largura fixa (40) e altura automática (0) para manter a proporção
+                    doc.addImage(logoDataUrl, 'PNG', 15, 10, 40, 0);
                 } else {
                     // Texto alternativo se o salão não tiver logoUrl cadastrado
                     doc.text("Logo do Salão", 15, 20);
