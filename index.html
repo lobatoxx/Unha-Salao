@@ -10,6 +10,8 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/1.5.3/signature_pad.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Adicionando a biblioteca de gráficos Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -38,8 +40,7 @@
 
     <div id="loginPage" class="hidden w-full max-w-sm mx-auto p-8 min-h-screen flex flex-col justify-center">
         <div class="text-center mb-8">
-            <!-- COLE A URL PÚBLICA DO SEU LOGO AQUI -->
-            <img src="https://i.ibb.co/DHKNkbnG/logo-schedule.png" alt="Logo do Schedule" class="mx-auto mb-4 rounded-full w-32 h-32 object-cover">
+            <img src="https://i.ibb.co/wRcmmJM/logo-schedule.png" alt="Logo do Schedule" class="mx-auto mb-4 rounded-full w-32 h-32 object-cover">
             <h1 class="text-3xl font-bold text-gray-700">Schedule</h1>
             <p class="text-gray-500">Gestão Completa</p>
         </div>
@@ -154,24 +155,67 @@
                     <h2 id="financeiroCurrentMonthYear" class="text-lg font-bold text-gray-800"></h2>
                     <button id="financeiroNextMonthBtn" class="p-2 rounded-full hover:bg-gray-100"><i class="fas fa-chevron-right"></i></button>
                 </div>
-                <div id="adminFinancialSummary" class="bg-gray-100 p-4 rounded-lg shadow mb-6 text-center">
-                    <p class="text-sm text-gray-600 font-medium">Faturamento Total do Mês</p>
-                    <p id="faturamentoTotalMes" class="text-3xl font-bold text-gray-800">R$ 0,00</p>
+                
+                 <!-- Abas do Financeiro -->
+                <div class="border-b border-gray-200 mb-4">
+                    <nav id="financeTabs" class="-mb-px flex space-x-6" aria-label="Tabs">
+                        <a href="#" data-tab="overview" class="finance-tab shrink-0 border-b-2 font-medium px-1 pb-2 text-sm border-blue-500 text-blue-600">Visão Geral</a>
+                        <a href="#" data-tab="transactions" class="finance-tab shrink-0 border-b-2 font-medium px-1 pb-2 text-sm border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700">Lançamentos</a>
+                        <a href="#" data-tab="professional" class="finance-tab shrink-0 border-b-2 font-medium px-1 pb-2 text-sm border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700">Profissionais</a>
+                    </nav>
                 </div>
-                 <div id="professionalFinancialSummary" class="hidden bg-gray-100 p-4 rounded-lg shadow mb-6 text-center">
-                    <p class="text-sm text-gray-600 font-medium">Seus Ganhos no Mês (Comissão)</p>
-                    <p id="ganhosProfissionalMes" class="text-3xl font-bold text-green-600">R$ 0,00</p>
+
+                <!-- Painéis das Abas -->
+                <div id="overviewTab" class="finance-tab-pane">
+                    <div class="grid grid-cols-1 gap-4 mb-6">
+                        <div class="bg-green-100 p-4 rounded-lg shadow">
+                            <p class="text-sm text-green-800 font-medium">Receitas do Mês</p>
+                            <p id="overviewRevenue" class="text-2xl font-bold text-green-900">R$ 0,00</p>
+                        </div>
+                        <div class="bg-red-100 p-4 rounded-lg shadow">
+                            <p class="text-sm text-red-800 font-medium">Despesas do Mês</p>
+                            <p id="overviewExpenses" class="text-2xl font-bold text-red-900">R$ 0,00</p>
+                        </div>
+                        <div class="bg-blue-100 p-4 rounded-lg shadow">
+                            <p class="text-sm text-blue-800 font-medium">Lucro do Mês</p>
+                            <p id="overviewProfit" class="text-2xl font-bold text-blue-900">R$ 0,00</p>
+                        </div>
+                    </div>
+                    <h3 class="font-bold text-gray-700 mb-2">Despesas por Categoria</h3>
+                    <div class="p-4 bg-white rounded-lg shadow-sm border">
+                        <canvas id="expensesChartCanvas"></canvas>
+                    </div>
                 </div>
-                <div id="adminFinancialDetails">
-                    <h3 class="font-bold text-gray-700 mb-2">Detalhes por Profissional</h3>
-                    <div id="detalhesFinanceiro" class="space-y-3"></div>
+
+                <div id="transactionsTab" class="finance-tab-pane hidden">
+                    <div class="flex justify-center gap-4 mb-4">
+                        <button id="openRevenueModalBtn" class="flex-1 bg-green-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-600 transition text-sm">
+                            <i class="fas fa-plus mr-2"></i>Receita
+                        </button>
+                        <button id="openExpenseModalBtn" class="flex-1 bg-red-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-red-600 transition text-sm">
+                            <i class="fas fa-minus mr-2"></i>Despesa
+                        </button>
+                    </div>
+                    <div id="transactionsList" class="space-y-2"></div>
                 </div>
+
+                <div id="professionalTab" class="finance-tab-pane hidden">
+                     <div id="professionalFinancialSummary" class="hidden bg-gray-100 p-4 rounded-lg shadow mb-6 text-center">
+                        <p class="text-sm text-gray-600 font-medium">Seus Ganhos no Mês (Comissão)</p>
+                        <p id="ganhosProfissionalMes" class="text-3xl font-bold text-green-600">R$ 0,00</p>
+                    </div>
+                    <div id="adminFinancialDetails">
+                        <h3 class="font-bold text-gray-700 mb-2">Repasse por Profissional</h3>
+                        <div id="detalhesFinanceiro" class="space-y-3"></div>
+                    </div>
+                </div>
+
             </div>
         </main>
         
-        <footer class="sticky bottom-0 bg-white border-t border-gray-200 p-2">
+        <footer class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-sm bg-white border-t border-gray-200 p-2 rounded-t-2xl">
             <div class="flex justify-around items-center h-14">
-                <button data-page="painelPage" class="nav-btn text-center text-pink-500"><i class="fas fa-home text-xl"></i><p class="text-xs font-bold">Painel</p></button>
+                <button data-page="painelPage" class="nav-btn text-center text-blue-600"><i class="fas fa-home text-xl"></i><p class="text-xs font-bold">Painel</p></button>
                 <button data-page="agendaPage" class="nav-btn text-center text-gray-400"><i class="fas fa-calendar-alt text-xl"></i><p class="text-xs">Agenda</p></button>
                 <button data-page="clientesPage" class="nav-btn text-center text-gray-400"><i class="fas fa-users text-xl"></i><p class="text-xs">Clientes</p></button>
                 <button data-page="equipePage" class="nav-btn text-center text-gray-400"><i class="fas fa-cut text-xl"></i><p class="text-xs">Equipe</p></button>
@@ -183,7 +227,7 @@
         <div id="reminderModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
             <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
                 <div class="flex items-start gap-3">
-                    <div class="text-pink-500 mt-1 text-xl"><i class="fas fa-clock"></i></div>
+                    <div class="text-blue-500 mt-1 text-xl"><i class="fas fa-clock"></i></div>
                     <div class="flex-1">
                         <h4 class="font-bold text-gray-800">Finalizar Atendimento</h4>
                         <p id="reminderText" class="text-sm text-gray-600 mt-1"></p>
@@ -343,7 +387,7 @@
                 </div>
                 <div class="mt-6 flex justify-end gap-3">
                     <button type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300" onclick="document.getElementById('addServiceModal').classList.add('hidden')">Cancelar</button>
-                    <button type="submit" class="bg-pink-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-pink-600">Salvar</button>
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700">Salvar</button>
                 </div>
             </form>
         </div>
@@ -367,7 +411,7 @@
                 </div>
                 <div class="mt-6 flex justify-end gap-3">
                     <button type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300" onclick="document.getElementById('addProfessionalModal').classList.add('hidden')">Cancelar</button>
-                    <button type="submit" class="bg-pink-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-pink-600">Salvar</button>
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700">Salvar</button>
                 </div>
             </form>
         </div>
@@ -388,7 +432,7 @@
                 </div>
                 <div class="mt-6 flex justify-end gap-3">
                     <button type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300" onclick="document.getElementById('addClientModal').classList.add('hidden')">Cancelar</button>
-                    <button type="submit" class="bg-pink-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-pink-600">Salvar</button>
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700">Salvar</button>
                 </div>
             </form>
         </div>
@@ -426,7 +470,7 @@
                     </div>
                     <div class="flex gap-3">
                         <button type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300" onclick="document.getElementById('addAppointmentModal').classList.add('hidden')">Cancelar</button>
-                        <button type="submit" class="bg-pink-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-pink-600">Salvar</button>
+                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700">Salvar</button>
                     </div>
                 </div>
             </form>
@@ -504,7 +548,7 @@
         <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
             <h3 class="text-lg font-bold text-center mb-4">O que deseja fazer?</h3>
             <div class="flex flex-col gap-3">
-                <button id="newAppointmentChoiceBtn" class="w-full bg-pink-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-pink-600">Novo Agendamento</button>
+                <button id="newAppointmentChoiceBtn" class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700">Novo Agendamento</button>
                 <button id="blockTimeChoiceBtn" class="w-full bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-700">Bloquear Horário</button>
                 <button id="cancelActionChoiceBtn" class="w-full bg-gray-200 text-gray-700 px-4 py-2 mt-2 rounded-lg font-semibold hover:bg-gray-300">Cancelar</button>
             </div>
@@ -519,13 +563,46 @@
             </div>
         </div>
     </div>
+
+    <!-- MODAL DE TRANSAÇÕES FINANCEIRAS -->
+    <div id="transactionModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-40">
+        <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
+             <div class="flex justify-between items-center mb-4">
+                <h3 id="transactionModalTitle" class="text-lg font-bold">Nova Transação</h3>
+                <button id="closeTransactionModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <form id="transactionForm">
+                <input type="hidden" id="transactionIdToEdit">
+                <input type="hidden" id="transactionType">
+                <div class="space-y-4">
+                    <input type="date" id="transactionDate" class="w-full px-4 py-2 border rounded-lg" required>
+                    <input type="text" id="transactionDescription" placeholder="Descrição (ex: Aluguel, Compra de esmalte)" class="w-full px-4 py-2 border rounded-lg" required>
+                    <input type="number" id="transactionAmount" placeholder="Valor (ex: 50.00)" step="0.01" class="w-full px-4 py-2 border rounded-lg" required>
+                    
+                    <div id="expenseFieldsContainer" class="space-y-4">
+                        <select id="transactionCategory" class="w-full px-4 py-2 border rounded-lg">
+                            <option value="Produtos">Produtos</option>
+                            <option value="Contas Fixas">Contas Fixas (Água, Luz, Aluguel)</option>
+                            <option value="Marketing">Marketing</option>
+                            <option value="Manutenção">Manutenção</option>
+                            <option value="Impostos">Impostos</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                         <select id="transactionExpenseType" class="w-full px-4 py-2 border rounded-lg">
+                            <option value="fixa">Despesa Fixa</option>
+                            <option value="variavel">Despesa Variável</option>
+                        </select>
+                    </div>
+
+                </div>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300" onclick="document.getElementById('transactionModal').classList.add('hidden')">Cancelar</button>
+                    <button type="submit" id="saveTransactionBtn" class="text-white px-4 py-2 rounded-lg font-semibold">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
     
-    
-    <script>
-      // Verifica se o navegador suporta Service Workers
-      
-    </script>
-     <script type="module" src="/src/main.js"></script>
+    <script type="module" src="app.js"></script>
     </body>
 </html>
-
