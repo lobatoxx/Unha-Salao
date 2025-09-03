@@ -1,13 +1,10 @@
-import { onAuthStateChanged, doc, getDoc, signOut } from '../firebase.js';
+import { onAuthStateChanged, doc, getDoc, signOut, query, collection, where, setDoc, getDocs } from '../firebase.js';
 import { auth, db } from '../firebase.js';
 import { state } from '../state.js';
 import * as DOMElements from '../ui/domElements.js';
 import * as Renderer from '../ui/renderer.js';
 import * as FirestoreService from '../services/firestoreService.js';
 
-/**
- * Função central que renderiza todos os componentes da UI.
- */
 function renderAll() {
     Renderer.updateSalonHeader();
     Renderer.renderServices();
@@ -20,9 +17,6 @@ function renderAll() {
     Renderer.updateUIVisibility();
 }
 
-/**
- * Inicializa o listener principal de autenticação.
- */
 export function initializeAuthListener() {
     onAuthStateChanged(auth, async (user) => {
         state.unsubscribes.forEach(unsub => unsub());
@@ -30,37 +24,50 @@ export function initializeAuthListener() {
 
         if (user) {
             try {
-                // 1. Busca o "documento de índice" do usuário para saber seu salão e papel.
+                let userContext = null;
                 const userDocRef = doc(db, 'users', user.uid);
                 const userDocSnap = await getDoc(userDocRef);
 
-                if (!userDocSnap.exists()) {
-                    throw new Error("Perfil de usuário não encontrado.");
+                if (userDocSnap.exists()) {
+                    // Caminho Rápido: O utilizador já tem um perfil de índice.
+                    userContext = userDocSnap.data();
+                } else {
+                    // Caminho de Migração: Pode ser um dono de salão não migrado.
+                    console.log("Perfil de utilizador não encontrado, tentando migrar como dono de salão...");
+                    const salonsQuery = query(collection(db, 'salons'), where("ownerId", "==", user.uid));
+                    const salonSnapshot = await getDocs(salonsQuery);
+
+                    if (!salonSnapshot.empty) {
+                        const salonDoc = salonSnapshot.docs[0];
+                        userContext = {
+                            salonId: salonDoc.id,
+                            role: 'salonOwner'
+                        };
+                        // Cria o documento de índice para que nas próximas vezes o login seja mais rápido.
+                        await setDoc(userDocRef, userContext);
+                        console.log("Dono de salão migrado com sucesso.");
+                    } else {
+                        throw new Error("Utilizador não está associado a nenhum salão.");
+                    }
                 }
 
-                const userData = userDocSnap.data();
                 state.user = user;
-                state.userSalonId = userData.salonId;
-                state.role = userData.role; // 'salonOwner' ou 'professional'
+                state.userSalonId = userContext.salonId;
+                state.role = userContext.role;
 
-                // 2. Com o salonId, busca as informações do salão e do perfil profissional (se aplicável).
                 const salonDocRef = doc(db, 'salons', state.userSalonId);
                 const salonDocSnap = await getDoc(salonDocRef);
-                if (!salonDocSnap.exists()) {
-                    throw new Error("Salão associado não encontrado.");
-                }
+                if (!salonDocSnap.exists()) throw new Error("Salão associado não encontrado.");
                 state.salonInfo = salonDocSnap.data();
 
                 if (state.role === 'professional') {
-                    const profDocRef = doc(db, 'professionals', userData.professionalId);
+                    if (!userContext.professionalId) throw new Error("Índice do utilizador profissional está incompleto. Falta o professionalId.");
+                    const profDocRef = doc(db, 'professionals', userContext.professionalId);
                     const profDocSnap = await getDoc(profDocRef);
-                    if (!profDocSnap.exists()) {
-                        throw new Error("Perfil profissional não encontrado.");
-                    }
+                    if (!profDocSnap.exists()) throw new Error("Perfil profissional não encontrado.");
                     state.professionalProfile = { id: profDocSnap.id, ...profDocSnap.data() };
                 }
 
-                // 3. Ativa os listeners em tempo real para as coleções do salão.
                 state.unsubscribes.push(FirestoreService.listenToServices(state.userSalonId, data => { state.services = data; renderAll(); }));
                 state.unsubscribes.push(FirestoreService.listenToClients(state.userSalonId, data => { state.clients = data; renderAll(); }));
                 state.unsubscribes.push(FirestoreService.listenToProfessionals(state.userSalonId, data => { state.professionals = data; renderAll(); }));
@@ -70,11 +77,10 @@ export function initializeAuthListener() {
                 DOMElements.loginPage.classList.add('hidden');
 
             } catch (error) {
-                console.error("Erro ao carregar dados do usuário:", error);
-                signOut(auth); // Desloga o usuário se os dados essenciais não puderem ser carregados
+                console.error("Erro ao carregar dados do utilizador:", error);
+                signOut(auth);
             }
         } else {
-            // Se o usuário deslogou, reseta o estado.
             Object.assign(state, {
                 user: null, role: 'client', userSalonId: null, professionalProfile: null, salonInfo: null,
                 appointments: [], professionals: [], clients: [], services: []
@@ -86,3 +92,4 @@ export function initializeAuthListener() {
         setTimeout(() => DOMElements.loadingOverlay.classList.add('hidden'), 500);
     });
 }
+
