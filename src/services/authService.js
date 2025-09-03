@@ -11,7 +11,8 @@ import {
     where,
     getDocs,
     doc,
-    updateDoc
+    updateDoc,
+    setDoc // <-- Importado
 } from '../firebase.js';
 
 /**
@@ -63,6 +64,13 @@ export const registerUser = async (email, password) => {
         const professionalRef = doc(db, 'professionals', professionalDoc.id);
         await updateDoc(professionalRef, {
             userId: user.uid
+        });
+
+        // --- NOVA ETAPA ---
+        // 5. Cria o documento de "índice" na coleção 'users' para as regras de segurança
+        const userIndexRef = doc(db, 'users', user.uid);
+        await setDoc(userIndexRef, {
+            salonId: professionalDoc.data().salonId
         });
 
     } catch (error) {

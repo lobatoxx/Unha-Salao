@@ -3,7 +3,7 @@
 // Importações do Firebase SDK
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, deleteUser } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, collection, onSnapshot, query, addDoc, doc, deleteDoc, updateDoc, Timestamp, getDocs, where, arrayUnion, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, query, addDoc, doc, deleteDoc, updateDoc, Timestamp, getDocs, where, arrayUnion, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // Sua configuração do Firebase
 const firebaseConfig = {
@@ -21,7 +21,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// ✅ EXPORTE TUDO AQUI
+// ✅ EXPORTE TUDO AQUI (com setDoc adicionado)
 export {
     auth,
     db,
@@ -41,5 +41,6 @@ export {
     getDocs,
     where,
     arrayUnion,
-    getDoc
+    getDoc,
+    setDoc // <-- Adicionado
 };
