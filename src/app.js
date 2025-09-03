@@ -1538,7 +1538,18 @@ import { auth, db } from './firebase.js';
                     loginPage.classList.add('hidden');
             
                 } else {
-                    state = { ...state, user: null, role: 'client', userSalonId: null, professionalProfile: null, salonInfo: null, appointments: [], professionals: [], clients: [], services: [] };
+                    // Reseta as propriedades do objeto state uma a uma
+                    state.user = null;
+                    state.role = 'client';
+                    state.userSalonId = null;
+                    state.professionalProfile = null;
+                    state.salonInfo = null;
+                    state.appointments = [];
+                    state.professionals = [];
+                    state.clients = [];
+                    state.services = [];
+                    
+                    // O resto do código continua igual
                     appContainer.classList.add('hidden'); 
                     loginPage.classList.remove('hidden');
                 }
