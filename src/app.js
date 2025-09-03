@@ -1,5 +1,5 @@
 // No início de app.js
-import { state, unsubscribes, reminderInterval } from './state.js';
+import { state } from './state.js';
 import { auth, db } from './firebase.js';
         
                 let confirmAction = null; // Variável global para a ação de confirmação
@@ -1444,9 +1444,9 @@ import { auth, db } from './firebase.js';
             });
 
             onAuthStateChanged(auth, async (user) => {
-                if (reminderInterval) clearInterval(reminderInterval);
-                unsubscribes.forEach(unsub => unsub());
-                unsubscribes.length = 0;
+                if (state.reminderInterval) clearInterval(state.reminderInterval);
+                state.unsubscribes.forEach(unsub => unsub());
+                state.unsubscribes.length = 0;
             
                 if (user) {
                     state.user = user;
@@ -1461,7 +1461,7 @@ import { auth, db } from './firebase.js';
                         state.professionalProfile = { id: professionalDoc.id, ...professionalDoc.data() };
                         state.role = 'professional';
                         state.userSalonId = professionalDoc.data().salonId;
-                        reminderInterval = setInterval(checkAppointmentsForReminders, 60000);
+                        state.reminderInterval = setInterval(checkAppointmentsForReminders, 60000);
                         foundRole = true;
                     }
             
@@ -1530,7 +1530,7 @@ import { auth, db } from './firebase.js';
                             }));
                             renderAll();
                         });
-                        unsubscribes.push(unsub);
+                        state.unsubscribes.push(unsub);
                     });
             
                     updateUIVisibility();

@@ -13,10 +13,11 @@ const state = {
   selectedDate: new Date().toISOString().split('T')[0],
   tempSlot: { date: null, time: null },
   tempClient: { id: null, name: null, phone: null },
-  signaturePad: null   // ✅ agora o SignaturePad faz parte do state
+  signaturePad: null,
+  // Variáveis movidas para dentro do objeto state:
+  unsubscribes: [],
+  reminderInterval: null
 };
 
-let unsubscribes = [];
-let reminderInterval = null;
-
-export { state, unsubscribes, reminderInterval };
+// Agora, exportamos apenas o objeto state
+export { state };
