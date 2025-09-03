@@ -8,9 +8,6 @@
     <meta name="theme-color" content="#2563eb"/>
     <link rel="apple-touch-icon" href="https://placehold.co/192x192/374151/FFFFFF?text=SC">
     
-    <!-- SCRIPT DO TAILWIND CSS ADICIONADO AQUI -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/1.5.3/signature_pad.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
@@ -41,7 +38,8 @@
 
     <div id="loginPage" class="hidden w-full max-w-sm mx-auto p-8 min-h-screen flex flex-col justify-center">
         <div class="text-center mb-8">
-            <img src="https://i.ibb.co/DGjHW4b/logo-schedule.png" alt="Logo do Schedule" class="mx-auto mb-4 rounded-full w-32 h-32 object-cover">
+            <!-- COLE A URL PÚBLICA DO SEU LOGO AQUI -->
+            <img src="https://i.ibb.co/DHKNkbnG/logo-schedule.png" alt="Logo do Schedule" class="mx-auto mb-4 rounded-full w-32 h-32 object-cover">
             <h1 class="text-3xl font-bold text-gray-700">Schedule</h1>
             <p class="text-gray-500">Gestão Completa</p>
         </div>
@@ -149,36 +147,6 @@
                     <div id="dailyViewTimeSlots" class="relative"></div>
                 </div>
             </div>
-            
-            <div id="contasPage" class="page">
-                <div class="flex justify-between items-center mb-4">
-                    <h1 class="text-2xl font-bold text-gray-800">Contas a Pagar</h1>
-                    <button id="openExpenseModalBtn" class="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:bg-blue-700 transition"><i class="fas fa-plus"></i></button>
-                </div>
-                <div class="flex justify-between items-center mb-4 bg-gray-100 p-2 rounded-lg">
-                    <button id="contasPrevMonthBtn" class="p-2 rounded-full hover:bg-gray-200"><i class="fas fa-chevron-left"></i></button>
-                    <h2 id="contasCurrentMonthYear" class="text-lg font-bold text-gray-800"></h2>
-                    <button id="contasNextMonthBtn" class="p-2 rounded-full hover:bg-gray-200"><i class="fas fa-chevron-right"></i></button>
-                </div>
-                <div class="grid grid-cols-2 gap-4 mb-6">
-                    <div class="bg-red-100 p-3 rounded-lg shadow">
-                        <p class="text-xs text-red-800 font-medium">A Pagar no Mês</p>
-                        <p id="totalAPagarMes" class="text-xl font-bold text-red-900">R$ 0,00</p>
-                    </div>
-                    <div class="bg-green-100 p-3 rounded-lg shadow">
-                        <p class="text-xs text-green-800 font-medium">Total Pago no Mês</p>
-                        <p id="totalPagoMes" class="text-xl font-bold text-green-900">R$ 0,00</p>
-                    </div>
-                </div>
-                 <div class="bg-blue-100 p-4 rounded-lg shadow mb-6 text-center">
-                    <p class="text-sm text-blue-800 font-medium">Balanço do Mês (Faturado - Pago)</p>
-                    <p id="balancoMes" class="text-2xl font-bold text-blue-900">R$ 0,00</p>
-                </div>
-                <h3 class="font-bold text-gray-700 mb-2">Lançamentos do Mês</h3>
-                <div id="expensesList" class="space-y-3">
-                    <p class="text-center text-gray-500 text-sm">Nenhuma conta para este mês.</p>
-                </div>
-            </div>
 
             <div id="financeiroPage" class="page">
                 <div class="flex justify-between items-center mb-4">
@@ -206,10 +174,9 @@
                 <button data-page="painelPage" class="nav-btn text-center text-pink-500"><i class="fas fa-home text-xl"></i><p class="text-xs font-bold">Painel</p></button>
                 <button data-page="agendaPage" class="nav-btn text-center text-gray-400"><i class="fas fa-calendar-alt text-xl"></i><p class="text-xs">Agenda</p></button>
                 <button data-page="clientesPage" class="nav-btn text-center text-gray-400"><i class="fas fa-users text-xl"></i><p class="text-xs">Clientes</p></button>
-                <button data-page="contasPage" class="nav-btn text-center text-gray-400"><i class="fas fa-file-invoice-dollar text-xl"></i><p class="text-xs">Contas</p></button>
-                <button data-page="financeiroPage" class="nav-btn text-center text-gray-400"><i class="fas fa-chart-pie text-xl"></i><p class="text-xs">Financeiro</p></button>
                 <button data-page="equipePage" class="nav-btn text-center text-gray-400"><i class="fas fa-cut text-xl"></i><p class="text-xs">Equipe</p></button>
                 <button data-page="servicosPage" class="nav-btn text-center text-gray-400"><i class="fas fa-concierge-bell text-xl"></i><p class="text-xs">Serviços</p></button>
+                <button data-page="financeiroPage" class="nav-btn text-center text-gray-400"><i class="fas fa-chart-pie text-xl"></i><p class="text-xs">Financeiro</p></button>
             </div>
         </footer>
 
@@ -375,7 +342,7 @@
                     <input type="number" id="serviceDuration" placeholder="Duração (em minutos)" class="w-full px-4 py-2 border rounded-lg" required>
                 </div>
                 <div class="mt-6 flex justify-end gap-3">
-                    <button type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300">Cancelar</button>
+                    <button type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300" onclick="document.getElementById('addServiceModal').classList.add('hidden')">Cancelar</button>
                     <button type="submit" class="bg-pink-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-pink-600">Salvar</button>
                 </div>
             </form>
@@ -399,7 +366,7 @@
                     </div>
                 </div>
                 <div class="mt-6 flex justify-end gap-3">
-                    <button type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300">Cancelar</button>
+                    <button type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300" onclick="document.getElementById('addProfessionalModal').classList.add('hidden')">Cancelar</button>
                     <button type="submit" class="bg-pink-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-pink-600">Salvar</button>
                 </div>
             </form>
@@ -420,7 +387,7 @@
                     <textarea id="clientObservations" rows="3" class="w-full p-2 border rounded-lg" placeholder="Observações gerais sobre o cliente..."></textarea>
                 </div>
                 <div class="mt-6 flex justify-end gap-3">
-                    <button type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300">Cancelar</button>
+                    <button type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300" onclick="document.getElementById('addClientModal').classList.add('hidden')">Cancelar</button>
                     <button type="submit" class="bg-pink-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-pink-600">Salvar</button>
                 </div>
             </form>
@@ -458,7 +425,7 @@
                         <button type="button" id="deleteAppointmentBtn" class="hidden bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600">Excluir</button>
                     </div>
                     <div class="flex gap-3">
-                        <button type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300">Cancelar</button>
+                        <button type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300" onclick="document.getElementById('addAppointmentModal').classList.add('hidden')">Cancelar</button>
                         <button type="submit" class="bg-pink-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-pink-600">Salvar</button>
                     </div>
                 </div>
@@ -499,7 +466,7 @@
                         <button type="button" id="deleteBlockBtn" class="hidden bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600">Excluir</button>
                     </div>
                     <div class="flex gap-3">
-                        <button type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300">Cancelar</button>
+                        <button type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300" onclick="document.getElementById('blockTimeModal').classList.add('hidden')">Cancelar</button>
                         <button type="submit" class="bg-gray-800 text-white px-4 py-2 rounded-lg font-semibold hover:bg-black">Salvar</button>
                     </div>
                 </div>
@@ -526,45 +493,8 @@
                     </div>
                 </div>
                 <div class="mt-6 flex justify-end gap-3">
-                    <button type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300">Cancelar</button>
+                    <button type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300" onclick="document.getElementById('blockDayModal').classList.add('hidden')">Cancelar</button>
                     <button type="submit" class="bg-gray-800 text-white px-4 py-2 rounded-lg font-semibold hover:bg-black">Confirmar Bloqueio</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
-    <div id="addExpenseModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-40">
-        <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
-             <div class="flex justify-between items-center mb-4">
-                <h3 id="expenseModalTitle" class="text-lg font-bold">Nova Conta</h3>
-                <button id="closeExpenseModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
-            </div>
-            <form id="addExpenseForm">
-                <input type="hidden" id="expenseIdToEdit">
-                <div class="space-y-4">
-                    <input type="text" id="expenseDescription" placeholder="Descrição da conta" class="w-full px-4 py-2 border rounded-lg" required>
-                    <input type="number" id="expenseAmount" placeholder="Valor (R$)" step="0.01" class="w-full px-4 py-2 border rounded-lg" required>
-                    <div>
-                        <label for="expenseDueDate" class="text-sm font-medium text-gray-700">Data de Vencimento</label>
-                        <input type="date" id="expenseDueDate" class="w-full px-4 py-2 border rounded-lg" required>
-                    </div>
-                    <select id="expenseType" class="w-full px-4 py-2 border rounded-lg" required>
-                        <option value="">Selecione o tipo</option>
-                        <option value="fixed">Custo Fixo</option>
-                        <option value="variable">Custo Variável</option>
-                    </select>
-                    <div class="flex items-center">
-                        <input type="checkbox" id="isInstallmentCheckbox" class="h-4 w-4 text-blue-600 rounded">
-                        <label for="isInstallmentCheckbox" class="ml-2 text-sm">É uma compra parcelada?</label>
-                    </div>
-                    <div id="installmentsSection" class="hidden space-y-2">
-                         <input type="number" id="expenseInstallments" placeholder="Nº de parcelas (ex: 3)" class="w-full px-4 py-2 border rounded-lg">
-                         <p class="text-xs text-gray-500">O valor informado será o de cada parcela.</p>
-                    </div>
-                </div>
-                <div class="mt-6 flex justify-end gap-3">
-                    <button type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300">Cancelar</button>
-                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700">Salvar</button>
                 </div>
             </form>
         </div>
@@ -572,5 +502,30 @@
 
     <div id="actionChoiceModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
-            <h3 class="text-lg font-bold text-center mb-4
+            <h3 class="text-lg font-bold text-center mb-4">O que deseja fazer?</h3>
+            <div class="flex flex-col gap-3">
+                <button id="newAppointmentChoiceBtn" class="w-full bg-pink-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-pink-600">Novo Agendamento</button>
+                <button id="blockTimeChoiceBtn" class="w-full bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-700">Bloquear Horário</button>
+                <button id="cancelActionChoiceBtn" class="w-full bg-gray-200 text-gray-700 px-4 py-2 mt-2 rounded-lg font-semibold hover:bg-gray-300">Cancelar</button>
+            </div>
+        </div>
+    </div>
+    <div id="confirmModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6 text-center">
+            <p id="confirmModalText" class="mb-4">Tem certeza?</p>
+            <div class="flex justify-center gap-4">
+                <button id="confirmModalCancel" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300">Cancelar</button>
+                <button id="confirmModalOk" class="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600">Confirmar</button>
+            </div>
+        </div>
+    </div>
+    
+    
+    <script>
+      // Verifica se o navegador suporta Service Workers - esse é o código Base.
+      
+    </script>
+     <script type="module" src="/src/main.js"></script>
+    </body>
+</html>
 
