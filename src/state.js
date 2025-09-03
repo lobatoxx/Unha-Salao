@@ -12,11 +12,11 @@ const state = {
   currentDate: new Date(),
   selectedDate: new Date().toISOString().split('T')[0],
   tempSlot: { date: null, time: null },
-  tempClient: { id: null, name: null, phone: null }
+  tempClient: { id: null, name: null, phone: null },
+  signaturePad: null   // ✅ agora o SignaturePad faz parte do state
 };
 
 let unsubscribes = [];
 let reminderInterval = null;
-let signaturePad = null;
 
-export { state, unsubscribes, reminderInterval, signaturePad };
+export { state, unsubscribes, reminderInterval };

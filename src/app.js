@@ -685,7 +685,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             const closeAnamnesisModalBtn = document.getElementById('closeAnamnesisModalBtn');
             const canvas = document.getElementById('signature-pad');
             const clearSignatureBtn = document.getElementById('clearSignatureBtn');
-            signaturePad = new SignaturePad(canvas);
+            state.signaturePad = new SignaturePad(canvas);
 
             const blockDayModal = document.getElementById('blockDayModal');
             const closeBlockDayModalBtn = document.getElementById('closeBlockDayModalBtn');
