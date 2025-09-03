@@ -1,6 +1,26 @@
 // No início de app.js
 import { state } from './state.js';
-import { auth, db } from './firebase.js';
+import {
+    auth,
+    db,
+    onAuthStateChanged,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    deleteUser,
+    collection,
+    onSnapshot,
+    query,
+    addDoc,
+    doc,
+    deleteDoc,
+    updateDoc,
+    Timestamp,
+    getDocs,
+    where,
+    arrayUnion,
+    getDoc
+} from './firebase.js';
         
                 let confirmAction = null; // Variável global para a ação de confirmação
         
