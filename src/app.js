@@ -3,34 +3,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
         import { getFirestore, collection, onSnapshot, query, addDoc, doc, deleteDoc, updateDoc, Timestamp, getDocs, where, arrayUnion, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         
-        const firebaseConfig = {
-          apiKey: "AIzaSyDUJBdk2K5n9645h7FlC8xVTWk1BHjY8Q0",
-          authDomain: "mi-galvao.firebaseapp.com",
-          projectId: "mi-galvao",
-          storageBucket: "mi-galvao.firebasestorage.app",
-          messagingSenderId: "791002859648",
-          appId: "1:791002859648:web:5e9a2ba629efd2516efe65",
-          measurementId: "G-ELHH1TQ32R"
-        };
-        
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        let state = { 
-            user: null, 
-            role: 'client',
-            userSalonId: null, 
-            salonInfo: null, // Armazena informações do salão (nome, logoUrl, etc.)
-            professionalProfile: null,
-            appointments: [], professionals: [], clients: [], services: [], 
-            currentDate: new Date(),
-            selectedDate: new Date().toISOString().split('T')[0],
-            tempSlot: { date: null, time: null },
-            tempClient: { id: null, name: null, phone: null }
-        };
-
-        let confirmAction = null; // Variável global para a ação de confirmação
+                let confirmAction = null; // Variável global para a ação de confirmação
         
         const whatsappMessages = [
             "Olá {cliente}! Tudo bem? Estou passando para confirmar seu agendamento conosco. Podemos contar com sua presença?",
@@ -39,10 +12,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             "Olá {cliente}! Agradecemos a sua visita e preferência. Esperamos te ver em breve! Atenciosamente, {profissional}.",
         ];
 
-        let unsubscribes = [];
-        let reminderInterval = null;
-        let signaturePad = null;
-        
         function showConfirmModal(message, onConfirm) {
             const confirmModal = document.getElementById('confirmModal');
             const confirmModalText = document.getElementById('confirmModalText');
@@ -1695,4 +1664,4 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             appointmentsForDay.addEventListener('click', handleAgendaClick);
             dailyViewTimeSlots.addEventListener('click', handleAgendaClick);
         }
-        main();
+        main(); //esse é o código que funciona!
