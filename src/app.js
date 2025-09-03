@@ -1446,7 +1446,7 @@ import { auth, db } from './firebase.js';
             onAuthStateChanged(auth, async (user) => {
                 if (reminderInterval) clearInterval(reminderInterval);
                 unsubscribes.forEach(unsub => unsub());
-                unsubscribes = [];
+                unsubscribes.length = 0;
             
                 if (user) {
                     state.user = user;
