@@ -1,52 +1,40 @@
-// src/ui/modalManager.js
-
 import { state } from '../state.js';
 import * as DOMElements from './domElements.js';
-import { exportAnamnesisToPDF } from '../utils/pdfGenerator.js'; // (Criaremos este arquivo depois)
+// A função de exportar PDF será criada num passo futuro, por agora comentamos a importação
+// import { exportAnamnesisToPDF } from '../utils/pdfGenerator.js'; 
 
 // --- Funções Genéricas de Modal ---
 
 export function hideAllModals() {
-    DOMElements.addServiceModal.classList.add('hidden');
-    DOMElements.addProfessionalModal.classList.add('hidden');
-    DOMElements.addClientModal.classList.add('hidden');
-    DOMElements.addAppointmentModal.classList.add('hidden');
-    DOMElements.clientProfileModal.classList.add('hidden');
-    DOMElements.blockTimeModal.classList.add('hidden');
-    DOMElements.blockDayModal.classList.add('hidden');
-    DOMElements.observationModal.classList.add('hidden');
-    DOMElements.whatsappMessageModal.classList.add('hidden');
-    DOMElements.reminderModal.classList.add('hidden');
-    DOMElements.anamnesisModal.classList.add('hidden');
-    DOMElements.actionChoiceModal.classList.add('hidden');
-    DOMElements.confirmModal.classList.add('hidden');
+    // Esconde todos os modais da aplicação
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => modal.classList.add('hidden'));
 }
 
-/**
- * Exibe um modal de confirmação e retorna uma Promise que resolve para true (se OK) ou false (se Cancelar).
- * @param {string} message - A mensagem a ser exibida no modal.
- * @returns {Promise<boolean>}
- */
 export function showConfirmModal(message) {
     return new Promise((resolve) => {
         DOMElements.confirmModalText.textContent = message;
         DOMElements.confirmModal.classList.remove('hidden');
 
-        const cleanup = () => {
-            DOMElements.confirmModalOk.replaceWith(DOMElements.confirmModalOk.cloneNode(true));
-            DOMElements.confirmModalCancel.replaceWith(DOMElements.confirmModalCancel.cloneNode(true));
-            DOMElements.confirmModal.classList.add('hidden');
+        // Usamos .cloneNode para remover event listeners antigos e evitar chamadas múltiplas
+        const newOkButton = DOMElements.confirmModalOk.cloneNode(true);
+        DOMElements.confirmModalOk.parentNode.replaceChild(newOkButton, DOMElements.confirmModalOk);
+
+        const newCancelButton = DOMElements.confirmModalCancel.cloneNode(true);
+        DOMElements.confirmModalCancel.parentNode.replaceChild(newCancelButton, DOMElements.confirmModalCancel);
+
+        const handleOk = () => {
+            hideAllModals();
+            resolve(true);
         };
 
-        DOMElements.confirmModalOk.addEventListener('click', () => {
-            cleanup();
-            resolve(true);
-        }, { once: true });
-
-        DOMElements.confirmModalCancel.addEventListener('click', () => {
-            cleanup();
+        const handleCancel = () => {
+            hideAllModals();
             resolve(false);
-        }, { once: true });
+        };
+
+        newOkButton.addEventListener('click', handleOk, { once: true });
+        newCancelButton.addEventListener('click', handleCancel, { once: true });
     });
 }
 
@@ -58,7 +46,7 @@ export function openServiceModal(service = null) {
     if (service) {
         DOMElements.serviceModalTitle.textContent = 'Editar Serviço';
         DOMElements.serviceIdToEdit.value = service.id;
-        document.getElementById('serviceName').value = service.name; // Assumindo que temos IDs nos inputs
+        document.getElementById('serviceName').value = service.name;
         document.getElementById('servicePrice').value = service.price;
         document.getElementById('serviceDuration').value = service.duration;
     } else {
@@ -88,7 +76,6 @@ export function openProfessionalModal(professional = null) {
     DOMElements.addProfessionalForm.reset();
     const emailInput = document.getElementById('professionalEmail');
     
-    // Limpa e preenche a lista de serviços
     DOMElements.professionalServicesChecklist.innerHTML = '';
     const serviceChecklistName = professional ? 'services-edit' : 'services-add';
     state.services.forEach(service => {
@@ -117,14 +104,12 @@ export function openProfessionalModal(professional = null) {
     DOMElements.addProfessionalModal.classList.remove('hidden');
 }
 
-
 export function openAppointmentModal(appointment = null, dateStr = null) {
     DOMElements.addAppointmentForm.reset();
     const deleteBtn = document.getElementById('deleteAppointmentBtn');
     const startAction = document.getElementById('startAppointmentAction');
     const editActions = document.getElementById('editAppointmentActions');
     
-    // Popula os selects
     DOMElements.appointmentClient.innerHTML = '<option value="">Selecione um cliente</option>' + state.clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
     DOMElements.appointmentProfessional.innerHTML = '<option value="">Selecione um profissional</option>' + state.professionals.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
     DOMElements.appointmentService.innerHTML = '<option value="">Selecione um serviço</option>' + state.services.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
@@ -162,20 +147,19 @@ export function openAppointmentModal(appointment = null, dateStr = null) {
     DOMElements.addAppointmentModal.classList.remove('hidden');
 }
 
-
 export function openWhatsAppMessageModal(client) {
     if (!client) return;
-    state.tempClient = client; // Armazena cliente temporariamente no state
+    state.tempClient = client;
     
     const list = document.getElementById('whatsappMessagesList');
     list.innerHTML = '';
 
     const professionalName = state.role === 'professional' ? state.professionalProfile.name : "Nós do Salão";
     const whatsappMessages = [
-        `Olá ${client.name.split(' ')[0]}! Tudo bem? Estou passando para confirmar seu agendamento conosco. Podemos contar com sua presença?`,
-        `Oi ${client.name.split(' ')[0]}! Lembrete do seu horário amanhã. Qualquer imprevisto, por favor, nos avise com antecedência.`,
+        `Olá ${client.name.split(' ')[0]}! Tudo bem? Estou a passar para confirmar o seu agendamento connosco. Podemos contar com a sua presença?`,
+        `Olá ${client.name.split(' ')[0]}! Lembrete do seu horário amanhã. Qualquer imprevisto, por favor, avise-nos com antecedência.`,
         `Olá ${client.name.split(' ')[0]}, tudo joia? Vi que faz um tempo que não nos visita. Que tal agendar um horário e renovar a beleza? 😊`,
-        `Olá ${client.name.split(' ')[0]}! Agradecemos a sua visita e preferência. Esperamos te ver em breve! Atenciosamente, ${professionalName}.`,
+        `Olá ${client.name.split(' ')[0]}! Agradecemos a sua visita e preferência. Esperamos vê-lo(a) em breve! Atenciosamente, ${professionalName}.`,
     ];
 
     whatsappMessages.forEach(msg => {
@@ -189,4 +173,44 @@ export function openWhatsAppMessageModal(client) {
     DOMElements.whatsappMessageModal.classList.remove('hidden');
 }
 
-// ... (Poderíamos adicionar os outros gerenciadores de modais aqui, como openBlockTimeModal, openClientProfileModal, etc., seguindo o mesmo padrão)
+
+// --- NOVOS GERENCIADORES DE MODAIS FINANCEIROS ---
+
+export function openExpenseModal(expense = null) {
+    const form = DOMElements.expenseForm;
+    form.reset();
+    DOMElements.expenseInstallmentsGroup.classList.remove('hidden'); // Mostra por defeito
+
+    if (expense) {
+        DOMElements.expenseModalTitle.textContent = 'Editar Despesa';
+        form.querySelector('[name="id"]').value = expense.id;
+        form.querySelector('[name="description"]').value = expense.description;
+        form.querySelector('[name="value"]').value = expense.value;
+        form.querySelector('[name="category"]').value = expense.category;
+        form.querySelector('[name="dueDate"]').value = expense.dueDate;
+        DOMElements.expenseInstallmentsGroup.classList.add('hidden'); // Esconde para edições
+    } else {
+        DOMElements.expenseModalTitle.textContent = 'Nova Despesa';
+        form.querySelector('[name="id"]').value = '';
+    }
+    DOMElements.expenseModal.classList.remove('hidden');
+}
+
+export function openRecurringExpenseModal(expense = null) {
+    const form = DOMElements.recurringExpenseForm;
+    form.reset();
+
+    if (expense) {
+        DOMElements.recurringExpenseModalTitle.textContent = 'Editar Despesa Recorrente';
+        form.querySelector('[name="id"]').value = expense.id;
+        form.querySelector('[name="description"]').value = expense.description;
+        form.querySelector('[name="value"]').value = expense.value;
+        form.querySelector('[name="category"]').value = expense.category;
+        form.querySelector('[name="dueDay"]').value = expense.dueDay;
+    } else {
+        DOMElements.recurringExpenseModalTitle.textContent = 'Nova Despesa Recorrente';
+        form.querySelector('[name="id"]').value = '';
+    }
+    DOMElements.recurringExpenseModal.classList.remove('hidden');
+}
+

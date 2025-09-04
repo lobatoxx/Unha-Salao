@@ -1,13 +1,11 @@
-// src/listeners/formListeners.js
-
 import { state } from '../state.js';
 import * as DOMElements from '../ui/domElements.js';
 import * as FirestoreService from '../services/firestoreService.js';
 import * as ModalManager from '../ui/modalManager.js';
+import { showToast } from '../ui/notificationManager.js';
+import { getNextMonth } from '../utils/dateUtils.js';
 
 // --- Lógica de Validação (Regras de Negócio) ---
-// Esta função verifica se há conflitos de horário para um profissional.
-// Em um projeto maior, ela poderia ir para um arquivo em /utils/validation.js
 function hasScheduleConflict({ id, professionalId, date, serviceId, duration: blockDuration }) {
     let duration = 0;
     if (serviceId) {
@@ -23,7 +21,7 @@ function hasScheduleConflict({ id, professionalId, date, serviceId, duration: bl
 
     for (const existingApp of state.appointments) {
         if (existingApp.professionalId !== professionalId) continue;
-        if (id && existingApp.id === id) continue; // Ignora o próprio agendamento ao editar
+        if (id && existingApp.id === id) continue;
 
         let existingDuration = 0;
         if (existingApp.type === 'block') {
@@ -37,14 +35,12 @@ function hasScheduleConflict({ id, professionalId, date, serviceId, duration: bl
         const existingStartTime = existingApp.date.getTime();
         const existingEndTime = existingStartTime + (existingDuration * 60000);
 
-        // Verifica a sobreposição
         if (newStartTime < existingEndTime && existingStartTime < newEndTime) {
-            return true; // Encontrou um conflito
+            return true;
         }
     }
-    return false; // Nenhum conflito
+    return false;
 }
-
 
 // --- Handlers de Submissão de Formulário ---
 
@@ -65,39 +61,41 @@ async function handleServiceSubmit(e) {
             await FirestoreService.addService(data);
         }
         ModalManager.hideAllModals();
+        showToast('Serviço guardado com sucesso!');
     } catch (err) {
-        console.error("Erro ao salvar serviço:", err);
-        alert("Não foi possível salvar o serviço.");
+        console.error("Erro ao guardar serviço:", err);
+        showToast('Não foi possível guardar o serviço.', true);
     }
 }
 
 async function handleProfessionalSubmit(e) {
     e.preventDefault();
     const id = DOMElements.professionalIdToEdit.value;
-    const name = id ? 'services-edit' : 'services-add';
+    const formName = id ? 'services-edit' : 'services-add';
     const data = { 
         name: document.getElementById('professionalName').value, 
         email: document.getElementById('professionalEmail').value,
         commission: parseInt(document.getElementById('professionalCommission').value), 
-        serviceIds: Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(cb => cb.value),
+        serviceIds: Array.from(document.querySelectorAll(`input[name="${formName}"]:checked`)).map(cb => cb.value),
         salonId: state.userSalonId
     };
     if (!data.name || !data.commission || !data.email) {
-        alert('Preencha nome, e-mail e comissão.');
+        showToast('Preencha nome, e-mail e comissão.', true);
         return;
     }
     
     try {
         if (id) {
-            const { salonId, email, ...updateData } = data; // Não permite alterar email ou salonId
+            const { salonId, email, ...updateData } = data;
             await FirestoreService.updateProfessional(id, updateData);
         } else {
             await FirestoreService.addProfessional(data);
         }
         ModalManager.hideAllModals();
+        showToast('Profissional guardado com sucesso!');
     } catch (err) {
-        console.error("Erro ao salvar profissional:", err);
-        alert("Não foi possível salvar o profissional.");
+        console.error("Erro ao guardar profissional:", err);
+        showToast('Não foi possível guardar o profissional.', true);
     }
 }
 
@@ -112,7 +110,7 @@ async function handleClientSubmit(e) {
         salonId: state.userSalonId
     };
     if (!data.name || !data.phone) {
-        alert('Nome e telefone são obrigatórios.');
+        showToast('Nome e telefone são obrigatórios.', true);
         return;
     }
     
@@ -123,9 +121,10 @@ async function handleClientSubmit(e) {
             await FirestoreService.addClient(data);
         }
         ModalManager.hideAllModals();
+        showToast('Cliente guardado com sucesso!');
     } catch (err) {
-        console.error("Erro ao salvar cliente:", err);
-        alert("Não foi possível salvar o cliente.");
+        console.error("Erro ao guardar cliente:", err);
+        showToast('Não foi possível guardar o cliente.', true);
     }
 }
 
@@ -140,7 +139,7 @@ async function handleAppointmentSubmit(e) {
     const serviceId = DOMElements.appointmentService.value;
 
     if (hasScheduleConflict({ id, professionalId, date: dateTime, serviceId })) {
-        alert("Conflito de agenda! Este profissional já está ocupado neste horário.");
+        showToast("Conflito de agenda! Este profissional já está ocupado neste horário.", true);
         return;
     }
 
@@ -150,12 +149,12 @@ async function handleAppointmentSubmit(e) {
         professionalId: professionalId,
         serviceId: serviceId,
         type: 'booking',
-        status: id ? state.appointments.find(a => a.id === id).status : 'agendado', // Mantém status ao editar
+        status: id ? state.appointments.find(a => a.id === id).status : 'agendado',
         salonId: state.userSalonId
     };
 
     if (!data.clientId || !data.professionalId || !data.serviceId) {
-        alert('Preencha todos os campos.');
+        showToast('Preencha todos os campos.', true);
         return;
     }
 
@@ -166,55 +165,99 @@ async function handleAppointmentSubmit(e) {
             await FirestoreService.addAppointment(data);
         }
         ModalManager.hideAllModals();
+        showToast('Agendamento guardado com sucesso!');
     } catch (err) {
-        console.error("Erro ao salvar agendamento:", err);
-        alert("Não foi possível salvar o agendamento.");
+        console.error("Erro ao guardar agendamento:", err);
+        showToast('Não foi possível guardar o agendamento.', true);
     }
 }
 
-async function handleAnamnesisSubmit(e) {
+async function handleExpenseSubmit(e) {
     e.preventDefault();
-    if (state.signaturePad.isEmpty()) {
-        alert('A assinatura do cliente é obrigatória.');
+    const form = DOMElements.expenseForm;
+    const id = form.querySelector('[name="id"]').value;
+    const description = form.querySelector('[name="description"]').value;
+    const value = parseFloat(form.querySelector('[name="value"]').value);
+    const category = form.querySelector('[name="category"]').value;
+    const dueDate = form.querySelector('[name="dueDate"]').value;
+    const installments = parseInt(form.querySelector('[name="installments"]').value) || 1;
+
+    if (!description || !value || !category || !dueDate) {
+        showToast('Por favor, preencha todos os campos da despesa.', true);
         return;
     }
-
-    const clientId = document.getElementById('anamnesisClientId').value;
-    const appointmentId = document.getElementById('anamnesisAppointmentId').value;
-    const client = state.clients.find(c => c.id === clientId);
-    if (!client) {
-        alert("Cliente não encontrado!");
-        return;
-    }
-
-    const formData = new FormData(DOMElements.anamnesisForm);
-    const answers = Object.fromEntries(formData.entries());
-    
-    const newRecord = {
-        date: new Date(), // O serviço converterá para Timestamp
-        answers: answers,
-        signature: state.signaturePad.toDataURL()
-    };
-    
-    const updatedHistory = [...(client.anamnesisHistory || []), newRecord];
 
     try {
-        await FirestoreService.updateClientAnamnesis(clientId, updatedHistory);
-        await FirestoreService.updateAppointmentStatus(appointmentId, 'concluido');
+        if (id) {
+            const data = { description, value, category, dueDate, salonId: state.userSalonId };
+            await FirestoreService.updateExpense(id, data);
+            showToast('Despesa atualizada com sucesso!');
+        } else {
+            const valuePerInstallment = value / installments;
+            let currentDueDate = new Date(dueDate + 'T00:00:00');
+
+            for (let i = 1; i <= installments; i++) {
+                const installmentDescription = installments > 1 ? `${description} (${i}/${installments})` : description;
+                const expenseData = {
+                    description: installmentDescription,
+                    value: valuePerInstallment,
+                    category,
+                    dueDate: currentDueDate.toISOString().split('T')[0],
+                    salonId: state.userSalonId,
+                };
+                await FirestoreService.addExpense(expenseData);
+                currentDueDate = getNextMonth(currentDueDate);
+            }
+            showToast(installments > 1 ? 'Despesas parceladas criadas com sucesso!' : 'Despesa criada com sucesso!');
+        }
         ModalManager.hideAllModals();
-    } catch (err) {
-        console.error("Erro ao salvar ficha de anamnese:", err);
-        alert("Ocorreu um erro ao salvar a ficha. Tente novamente.");
+    } catch (error) {
+        console.error('Erro ao guardar despesa:', error);
+        showToast('Ocorreu um erro ao guardar a despesa.', true);
     }
 }
 
-// --- Função de Inicialização ---
+async function handleRecurringExpenseSubmit(e) {
+    e.preventDefault();
+    const form = DOMElements.recurringExpenseForm;
+    const id = form.querySelector('[name="id"]').value;
+    const data = {
+        description: form.querySelector('[name="description"]').value,
+        value: parseFloat(form.querySelector('[name="value"]').value),
+        category: form.querySelector('[name="category"]').value,
+        dueDay: parseInt(form.querySelector('[name="dueDay"]').value),
+        salonId: state.userSalonId,
+    };
 
+    if (!data.description || !data.value || !data.category || !data.dueDay) {
+        showToast('Por favor, preencha todos os campos.', true);
+        return;
+    }
+
+    try {
+        if (id) {
+            await FirestoreService.updateRecurringExpense(id, data);
+            showToast('Despesa recorrente atualizada!');
+        } else {
+            await FirestoreService.addRecurringExpense(data);
+            showToast('Despesa recorrente criada!');
+        }
+        ModalManager.hideAllModals();
+    } catch (error) {
+        console.error('Erro ao guardar despesa recorrente:', error);
+        showToast('Ocorreu um erro ao guardar a despesa.', true);
+    }
+}
+
+
+// --- Função de Inicialização ---
 export function initializeFormListeners() {
     DOMElements.addServiceForm.addEventListener('submit', handleServiceSubmit);
     DOMElements.addProfessionalForm.addEventListener('submit', handleProfessionalSubmit);
     DOMElements.addClientForm.addEventListener('submit', handleClientSubmit);
     DOMElements.addAppointmentForm.addEventListener('submit', handleAppointmentSubmit);
-    DOMElements.anamnesisForm.addEventListener('submit', handleAnamnesisSubmit);
-    // Adicione outros listeners de formulário aqui (blockTime, observation, etc.)
+    
+    DOMElements.expenseForm.addEventListener('submit', handleExpenseSubmit);
+    DOMElements.recurringExpenseForm.addEventListener('submit', handleRecurringExpenseSubmit);
 }
+

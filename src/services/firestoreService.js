@@ -10,7 +10,8 @@ import {
     query,
     where,
     onSnapshot,
-    Timestamp
+    Timestamp,
+    writeBatch
 } from '../firebase.js';
 
 // --- Funções de Listener (Tempo Real) ---
@@ -30,7 +31,9 @@ function createCollectionListener(collectionName, salonId, callback) {
             id: doc.id,
             ...doc.data(),
             // Converte Timestamps do Firebase para objetos Date do JS, se existirem
-            date: doc.data().date?.toDate()
+            date: doc.data().date?.toDate(),
+            dueDate: doc.data().dueDate?.toDate(),
+            paymentDate: doc.data().paymentDate?.toDate()
         }));
         callback(data);
     });
@@ -66,7 +69,6 @@ export const updateClientAnamnesis = (clientId, history) => {
 
 export const listenToAppointments = (salonId, callback) => createCollectionListener('appointments', salonId, callback);
 export const addAppointment = (data) => {
-    // Garante que a data seja salva no formato Timestamp do Firebase
     const appointmentData = { ...data, date: Timestamp.fromDate(new Date(data.date)) };
     return addDoc(collection(db, 'appointments'), appointmentData);
 };
@@ -82,3 +84,66 @@ export const updateAppointmentStatus = (id, status, observation = null) => {
     return updateDoc(doc(db, 'appointments', id), dataToUpdate);
 };
 export const deleteAppointment = (id) => deleteDoc(doc(db, 'appointments', id));
+
+// --- NOVA: API de Despesas ---
+
+export const listenToExpenses = (salonId, callback) => createCollectionListener('expenses', salonId, callback);
+
+export const addExpense = (data) => {
+    const { isInstallment, installments, ...expenseData } = data;
+    const numInstallments = parseInt(installments);
+
+    if (isInstallment && numInstallments > 1) {
+        const batch = writeBatch(db);
+        const installmentValue = parseFloat(expenseData.value) / numInstallments;
+        const firstDate = new Date(expenseData.dueDate + 'T12:00:00Z'); // Usar UTC para evitar problemas de fuso horário
+
+        for (let i = 0; i < numInstallments; i++) {
+            const dueDate = new Date(firstDate);
+            dueDate.setUTCMonth(firstDate.getUTCMonth() + i);
+
+            const installmentDocRef = doc(collection(db, 'expenses'));
+            batch.set(installmentDocRef, {
+                ...expenseData,
+                value: parseFloat(installmentValue.toFixed(2)),
+                dueDate: Timestamp.fromDate(dueDate),
+                description: `${expenseData.description} (${i + 1}/${numInstallments})`,
+                status: 'unpaid',
+                paymentDate: null
+            });
+        }
+        return batch.commit();
+    } else {
+        return addDoc(collection(db, 'expenses'), {
+            ...expenseData,
+            value: parseFloat(expenseData.value),
+            dueDate: Timestamp.fromDate(new Date(expenseData.dueDate + 'T12:00:00Z')),
+            status: 'unpaid',
+            paymentDate: null
+        });
+    }
+};
+
+export const updateExpense = (id, data) => {
+    const dataToUpdate = { ...data, value: parseFloat(data.value) };
+    if (data.dueDate) {
+        dataToUpdate.dueDate = Timestamp.fromDate(new Date(data.dueDate + 'T12:00:00Z'));
+    }
+    return updateDoc(doc(db, 'expenses', id), dataToUpdate);
+};
+
+export const deleteExpense = (id) => deleteDoc(doc(db, 'expenses', id));
+
+export const toggleExpenseStatus = (id, currentStatus) => {
+    const newStatus = currentStatus === 'paid' ? 'unpaid' : 'paid';
+    const paymentDate = newStatus === 'paid' ? Timestamp.now() : null;
+    return updateDoc(doc(db, 'expenses', id), { status: newStatus, paymentDate });
+};
+
+
+// --- NOVA: API de Despesas Recorrentes ---
+
+export const listenToRecurringExpenses = (salonId, callback) => createCollectionListener('recurringExpenses', salonId, callback);
+export const addRecurringExpense = (data) => addDoc(collection(db, 'recurringExpenses'), { ...data, value: parseFloat(data.value), dueDay: parseInt(data.dueDay) });
+export const updateRecurringExpense = (id, data) => updateDoc(doc(db, 'recurringExpenses', id), { ...data, value: parseFloat(data.value), dueDay: parseInt(data.dueDay) });
+export const deleteRecurringExpense = (id) => deleteDoc(doc(db, 'recurringExpenses', id));

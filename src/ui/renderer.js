@@ -1,9 +1,8 @@
-// src/ui/renderer.js
-
 import { state } from '../state.js';
 import * as DOMElements from './domElements.js';
+import { getMonthYear, getStartOfMonth, getEndOfMonth } from '../utils/dateUtils.js';
 
-// --- Renderização do Header e UI Geral ---
+// --- Funções de Renderização de UI Geral ---
 
 export function updateSalonHeader() {
     if (state.salonInfo && state.salonInfo.logoUrl) {
@@ -27,35 +26,32 @@ export function updateUIVisibility() {
 
     const equipeBtn = document.querySelector('button[data-page="equipePage"]');
     const servicosBtn = document.querySelector('button[data-page="servicosPage"]');
+    const financeiroBtn = document.querySelector('button[data-page="financeiroPage"]');
 
     if (isOwner) {
         equipeBtn.style.display = 'block';
         servicosBtn.style.display = 'block';
+        financeiroBtn.style.display = 'block'; // Garante que o dono vê o financeiro
         DOMElements.openClientModalBtn.style.display = 'block';
         DOMElements.totalClientesCard.style.display = 'block';
         DOMElements.totalServicosCard.style.display = 'block';
-        DOMElements.adminFinancialSummary.style.display = 'block';
-        DOMElements.adminFinancialDetails.style.display = 'block';
-        DOMElements.professionalFinancialSummary.classList.add('hidden');
     } else if (isProfessional) {
         equipeBtn.style.display = 'none';
         servicosBtn.style.display = 'none';
+        financeiroBtn.style.display = 'none'; // Profissional não vê o novo financeiro
         DOMElements.openClientModalBtn.style.display = 'none';
         DOMElements.totalClientesCard.style.display = 'none';
         DOMElements.totalServicosCard.style.display = 'none';
-        DOMElements.adminFinancialSummary.style.display = 'none';
-        DOMElements.adminFinancialDetails.style.display = 'none';
-        DOMElements.professionalFinancialSummary.classList.remove('hidden');
     }
 }
 
-
-// --- Renderização das Listas ---
+// --- Funções de Renderização de Listas ---
 
 export function renderServices() {
+    if (!DOMElements.servicesList) return;
     DOMElements.servicesList.innerHTML = '';
     if (state.services.length === 0) {
-        DOMElements.servicesList.innerHTML = `<p class="text-center text-gray-500">Nenhum serviço cadastrado.</p>`;
+        DOMElements.servicesList.innerHTML = `<p class="text-center text-gray-500">Nenhum serviço registado.</p>`;
         return;
     }
     state.services.forEach(service => {
@@ -63,13 +59,14 @@ export function renderServices() {
         el.className = 'bg-white p-4 rounded-lg shadow-sm border flex justify-between items-center';
         const price = typeof service.price === 'number' ? service.price.toFixed(2) : '0.00';
         el.innerHTML = `
-            <div><p class="font-semibold text-gray-800">${service.name || ''}</p><p class="text-sm text-gray-500">R$ ${price.replace('.',',')} - ${service.duration || 0} min</p></div>
+            <div><p class="font-semibold text-gray-800">${service.name || ''}</p><p class="text-sm text-gray-500">${price.replace('.',',')} € - ${service.duration || 0} min</p></div>
             <div><button class="edit-service-btn text-blue-500 hover:text-blue-700 mr-2" data-id="${service.id}"><i class="fas fa-pencil-alt"></i></button><button class="delete-service-btn text-red-500 hover:text-red-700" data-id="${service.id}"><i class="fas fa-trash"></i></button></div>`;
         DOMElements.servicesList.appendChild(el);
     });
 }
 
 export function renderProfessionals() {
+    if (!DOMElements.professionalsList) return;
     DOMElements.professionalsList.innerHTML = '';
     state.professionals.forEach(prof => {
         const el = document.createElement('div');
@@ -86,6 +83,7 @@ export function renderProfessionals() {
 }
 
 export function renderClients() {
+    if (!DOMElements.clientsList) return;
     DOMElements.clientsList.innerHTML = '';
     state.clients.forEach(client => {
         const el = document.createElement('div');
@@ -109,7 +107,7 @@ export function renderClients() {
     });
 }
 
-// --- Renderização do Dashboard ---
+// --- Funções de Renderização do Dashboard ---
 
 export function renderDashboard() {
     const today = new Date();
@@ -124,7 +122,7 @@ export function renderDashboard() {
         return total + (service?.price || 0);
     }, 0);
 
-    DOMElements.faturamentoHoje.textContent = `R$ ${faturamentoDeHoje.toFixed(2).replace('.', ',')}`;
+    DOMElements.faturamentoHoje.textContent = `${faturamentoDeHoje.toFixed(2).replace('.', ',')} €`;
     if (state.role === 'salonOwner') {
         DOMElements.totalClientes.textContent = state.clients.length;
         DOMElements.totalServicos.textContent = state.services.length;
@@ -140,7 +138,7 @@ export function renderDashboard() {
             const el = document.createElement('div');
             el.className = 'bg-white p-3 rounded-lg shadow-sm border';
             el.innerHTML = `
-                <p class="font-bold text-blue-600">${app.date.toLocaleDateString('pt-BR')} - ${app.date.toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}</p>
+                <p class="font-bold text-blue-600">${app.date.toLocaleDateString('pt-PT')} - ${app.date.toLocaleTimeString('pt-PT', {hour: '2-digit', minute: '2-digit'})}</p>
                 <p class="font-semibold text-gray-800">${client}</p>
                 <p class="text-sm text-gray-600">${service}</p>`;
             DOMElements.proximosAgendamentos.appendChild(el);
@@ -148,8 +146,7 @@ export function renderDashboard() {
     }
 }
 
-
-// --- Renderização da Agenda e Calendário ---
+// --- Funções de Renderização da Agenda e Calendário ---
 
 export function renderCalendar() {
     DOMElements.calendarDays.innerHTML = '';
@@ -157,11 +154,11 @@ export function renderCalendar() {
     const year = date.getFullYear();
     const month = date.getMonth();
     
-    if (!DOMElements.dailyView.classList.contains('hidden')) {
+    if (DOMElements.dailyView && !DOMElements.dailyView.classList.contains('hidden')) {
         const selectedDateObj = new Date(state.selectedDate + 'T00:00:00');
-        DOMElements.currentMonthYear.textContent = selectedDateObj.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+        DOMElements.currentMonthYear.textContent = selectedDateObj.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' });
     } else {
-        DOMElements.currentMonthYear.textContent = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+        DOMElements.currentMonthYear.textContent = date.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
     }
     
     const firstDayOfMonth = new Date(year, month, 1).getDay();
@@ -191,7 +188,7 @@ export function renderAppointmentsForDay() {
         return;
     }
     const dateObj = new Date(selected + 'T00:00:00');
-    DOMElements.appointmentsTitle.textContent = `Agendamentos para ${dateObj.toLocaleDateString('pt-BR')}:`;
+    DOMElements.appointmentsTitle.textContent = `Agendamentos para ${dateObj.toLocaleDateString('pt-PT')}:`;
     const dayAppointments = state.appointments.filter(app => app.date && app.date.toISOString().split('T')[0] === selected).sort((a, b) => a.date - b.date);
     DOMElements.appointmentsForDay.innerHTML = '';
     if (dayAppointments.length === 0) {
@@ -211,9 +208,9 @@ export function renderAppointmentsForDay() {
             }
 
             if (app.type === 'block') {
-                const startTimeStr = app.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                const startTimeStr = app.date.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
                 const endTime = new Date(app.date.getTime() + app.duration * 60000);
-                const endTimeStr = endTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                const endTimeStr = endTime.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
                 el.innerHTML = `
                     <div class="pointer-events-none">
                         <p class="font-bold text-gray-600">${startTimeStr} - ${endTimeStr}</p>
@@ -227,8 +224,8 @@ export function renderAppointmentsForDay() {
                 const startTime = app.date;
                 const duration = service?.duration || 0;
                 const endTime = new Date(startTime.getTime() + duration * 60000);
-                const startTimeStr = startTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                const endTimeStr = endTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                const startTimeStr = startTime.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+                const endTimeStr = endTime.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
                 el.innerHTML = `
                     <div>
                         <div class="flex items-center pointer-events-none">
@@ -247,16 +244,9 @@ export function renderAppointmentsForDay() {
     }
 }
 
-/**
- * OBSERVACAO IMPORTANTE:
- * A função abaixo `renderDailyView` agora recebe `openActionChoiceModal` como um argumento.
- * Isso se chama "injeção de dependência" e é uma ótima prática. Significa que o nosso "pintor" (renderer)
- * não precisa saber *como* o modal funciona, ele apenas recebe a função para ser chamada quando
- * um slot de horário for clicado. A lógica do que essa função faz ficará em outro lugar.
- */
 export function renderDailyView(openActionChoiceModal) {
     const date = new Date(state.selectedDate + 'T00:00:00');
-    DOMElements.dailyViewTitle.textContent = `Agenda para ${date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}`;
+    DOMElements.dailyViewTitle.textContent = `Agenda para ${date.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' })}`;
     DOMElements.dailyViewTimeSlots.innerHTML = '';
 
     const dayAppointments = state.appointments
@@ -268,13 +258,12 @@ export function renderDailyView(openActionChoiceModal) {
     const SLOT_DURATION_MINUTES = 30;
     const SLOT_HEIGHT_REM = 2.5;
 
-    // Renderiza os slots de horário vazios no fundo
     const backgroundSlots = document.createDocumentFragment();
     for (let h = START_HOUR; h < END_HOUR; h++) {
         for (let m = 0; m < 60; m += SLOT_DURATION_MINUTES) {
             const slotTime = new Date(date);
             slotTime.setHours(h, m, 0, 0);
-            const slotTimeStr = slotTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const slotTimeStr = slotTime.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
 
             const el = document.createElement('div');
             el.className = 'flex items-start p-2 border-t border-gray-100 hover:bg-gray-50 cursor-pointer';
@@ -282,14 +271,12 @@ export function renderDailyView(openActionChoiceModal) {
             el.dataset.date = state.selectedDate;
             el.dataset.time = slotTimeStr;
             el.innerHTML = `<div class="text-xs font-bold text-gray-400 w-12">${slotTimeStr}</div>`;
-            // A mágica acontece aqui: o clique chama a função que foi passada como argumento
             el.onclick = () => openActionChoiceModal(el.dataset.date, el.dataset.time);
             backgroundSlots.appendChild(el);
         }
     }
     DOMElements.dailyViewTimeSlots.appendChild(backgroundSlots);
     
-    // Renderiza os agendamentos existentes por cima dos slots
     dayAppointments.forEach(app => {
         const isBlock = app.type === 'block';
         const service = !isBlock ? state.services.find(s => s.id === app.serviceId) : null;
@@ -367,51 +354,76 @@ export function renderDailyView(openActionChoiceModal) {
     });
 }
 
+// --- NOVAS FUNÇÕES DE RENDERIZAÇÃO FINANCEIRA ---
 
-// --- Renderização Financeiro ---
+function renderExpenseItem(expense) {
+    const isRecurring = expense.dueDay; // Despesas recorrentes têm 'dueDay', as outras não
+    const valueClass = expense.value > 100 ? 'text-red-600' : 'text-gray-700';
+    const dateText = isRecurring 
+        ? `Vence todo o dia ${expense.dueDay}`
+        : `Vence em ${new Date(expense.dueDate + 'T00:00:00').toLocaleDateString('pt-PT')}`;
 
-export function renderFinanceiro() {
-    const date = state.currentDate;
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    DOMElements.financeiroCurrentMonthYear.textContent = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-    
-    const appointmentsInMonth = state.appointments.filter(app => {
-        return app.status === 'faturado' && app.date && app.date.getFullYear() === year && app.date.getMonth() === month;
-    });
-
-    if (state.role === 'salonOwner') {
-        let totalMonthRevenue = 0;
-        DOMElements.detalhesFinanceiro.innerHTML = '';
-        if (state.professionals.length === 0) {
-            DOMElements.detalhesFinanceiro.innerHTML = `<p class="text-center text-gray-500 text-sm">Nenhum profissional cadastrado.</p>`;
-        }
-        state.professionals.forEach(prof => {
-            const profAppointments = appointmentsInMonth.filter(app => app.professionalId === prof.id);
-            const profRevenue = profAppointments.reduce((total, app) => {
-                const service = state.services.find(s => s.id === app.serviceId);
-                return total + (service?.price || 0);
-            }, 0);
-            totalMonthRevenue += profRevenue;
-            const commissionValue = profRevenue * (prof.commission / 100);
-            const el = document.createElement('div');
-            el.className = 'bg-white p-4 rounded-lg shadow-sm border';
-            el.innerHTML = `
-                <p class="font-bold text-gray-800">${prof.name}</p>
-                <div class="mt-2 text-sm space-y-1">
-                    <div class="flex justify-between"><span>Faturamento:</span> <span class="font-semibold">R$ ${profRevenue.toFixed(2).replace('.', ',')}</span></div>
-                    <div class="flex justify-between text-red-600"><span>Comissão (${prof.commission}%):</span> <span class="font-semibold">- R$ ${commissionValue.toFixed(2).replace('.', ',')}</span></div>
-                    <div class="flex justify-between border-t pt-1 mt-1"><span>Líquido:</span> <span class="font-bold text-green-600">R$ ${(profRevenue - commissionValue).toFixed(2).replace('.', ',')}</span></div>
-                </div>`;
-            DOMElements.detalhesFinanceiro.appendChild(el);
-        });
-        DOMElements.faturamentoTotalMes.textContent = `R$ ${totalMonthRevenue.toFixed(2).replace('.', ',')}`;
-    } else if (state.role === 'professional') {
-        const profRevenue = appointmentsInMonth.reduce((total, app) => {
-            const service = state.services.find(s => s.id === app.serviceId);
-            return total + (service?.price || 0);
-        }, 0);
-        const commissionValue = profRevenue * (state.professionalProfile.commission / 100);
-        DOMElements.ganhosProfissionalMes.textContent = `R$ ${commissionValue.toFixed(2).replace('.', ',')}`;
-    }
+    return `
+        <div class="bg-white p-3 rounded-lg shadow-sm border-l-4 border-gray-200 flex justify-between items-center">
+            <div>
+                <p class="font-semibold text-gray-800">${expense.description}</p>
+                <p class="text-xs text-gray-500">${dateText} - Categoria: ${expense.category}</p>
+            </div>
+            <div class="text-right">
+                <p class="font-bold ${valueClass}">${expense.value.toFixed(2).replace('.', ',')} €</p>
+                <div class="text-gray-400 mt-1">
+                    <button class="edit-expense-btn hover:text-blue-500" data-id="${expense.id}" data-recurring="${!!isRecurring}"><i class="fas fa-edit"></i></button>
+                    <button class="delete-expense-btn hover:text-red-500 ml-2" data-id="${expense.id}" data-recurring="${!!isRecurring}"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+        </div>
+    `;
 }
+
+export function renderFinancialPage() {
+    if (!DOMElements.financeiroPage.classList.contains('active')) return;
+
+    DOMElements.financeiroCurrentMonthYear.textContent = getMonthYear(state.currentDate);
+
+    const start = getStartOfMonth(state.currentDate);
+    const end = getEndOfMonth(state.currentDate);
+    
+    // Calcular Faturação
+    const faturamento = state.appointments
+        .filter(app => app.status === 'faturado' && app.date >= start && app.date <= end)
+        .reduce((sum, app) => {
+            const service = state.services.find(s => s.id === app.serviceId);
+            return sum + (service?.price || 0);
+        }, 0);
+    
+    // Calcular Despesas do Mês
+    let totalDespesas = 0;
+    
+    // Despesas pontuais do mês
+    const monthlyExpenses = state.expenses.filter(exp => {
+        const dueDate = new Date(exp.dueDate + 'T00:00:00');
+        return dueDate >= start && dueDate <= end;
+    });
+    totalDespesas += monthlyExpenses.reduce((sum, exp) => sum + exp.value, 0);
+
+    // Despesas recorrentes aplicáveis a este mês
+    totalDespesas += state.recurringExpenses.reduce((sum, rexp) => sum + rexp.value, 0);
+    
+    // Atualizar o Dashboard Financeiro
+    DOMElements.financeiroFaturamento.textContent = `${faturamento.toFixed(2).replace('.', ',')} €`;
+    DOMElements.financeiroDespesas.textContent = `${totalDespesas.toFixed(2).replace('.', ',')} €`;
+    DOMElements.financeiroLucro.textContent = `${(faturamento - totalDespesas).toFixed(2).replace('.', ',')} €`;
+    
+    // Renderizar a lista de Despesas Pontuais
+    const expensesListElement = document.getElementById('expensesList');
+    expensesListElement.innerHTML = monthlyExpenses.length > 0 
+        ? monthlyExpenses.map(renderExpenseItem).join('')
+        : '<p class="text-center text-gray-500 text-sm p-4">Nenhuma despesa pontual para este mês.</p>';
+
+    // Renderizar a lista de Despesas Recorrentes
+    const recurringExpensesListElement = document.getElementById('recurringExpensesList');
+    recurringExpensesListElement.innerHTML = state.recurringExpenses.length > 0 
+        ? state.recurringExpenses.map(renderExpenseItem).join('')
+        : '<p class="text-center text-gray-500 text-sm p-4">Nenhuma despesa recorrente registada.</p>';
+}
+
