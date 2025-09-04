@@ -1,4 +1,5 @@
-// state.js
+// src/state.js
+
 const state = {
   user: null,
   role: 'client',
@@ -9,12 +10,17 @@ const state = {
   professionals: [],
   clients: [],
   services: [],
+  
+  // --- NOVO ESTADO FINANCEIRO ---
+  expenses: [],
+  recurringExpenses: [],
+  
+  // --- ESTADO EXISTENTE ---
   currentDate: new Date(),
   selectedDate: new Date().toISOString().split('T')[0],
   tempSlot: { date: null, time: null },
   tempClient: { id: null, name: null, phone: null },
   signaturePad: null,
-  // Variáveis movidas para dentro do objeto state:
   unsubscribes: [],
   reminderInterval: null
 };
