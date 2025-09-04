@@ -92,8 +92,26 @@ export const appointmentTime = document.getElementById('appointmentTime');
 export const appointmentClient = document.getElementById('appointmentClient');
 export const appointmentProfessional = document.getElementById('appointmentProfessional');
 export const appointmentService = document.getElementById('appointmentService');
+
+// Campos do Modal de Bloqueio de Horário
 export const blockIdToEdit = document.getElementById('blockIdToEdit');
-export const blockDayDate = document.getElementById('blockDayDate'); // <-- LINHA ADICIONADA AQUI
+export const deleteBlockBtn = document.getElementById('deleteBlockBtn');
+export const blockDate = document.getElementById('blockDate');
+export const blockStartTime = document.getElementById('blockStartTime');
+export const blockEndTime = document.getElementById('blockEndTime');
+export const blockReason = document.getElementById('blockReason');
+export const blockProfessionalAdminView = document.getElementById('blockProfessionalAdminView');
+export const blockProfessionalUserView = document.getElementById('blockProfessionalUserView');
+export const blockProfessional = document.getElementById('blockProfessional');
+export const blockProfessionalName = document.getElementById('blockProfessionalName');
+
+// Campos do Modal de Bloqueio de Dia
+export const blockDayDate = document.getElementById('blockDayDate');
+export const blockDayProfessionalAdminView = document.getElementById('blockDayProfessionalAdminView');
+export const blockDayProfessionalUserView = document.getElementById('blockDayProfessionalUserView');
+export const blockDayProfessional = document.getElementById('blockDayProfessional');
+export const blockDayProfessionalName = document.getElementById('blockDayProfessionalName');
+
 
 // --- Agenda e Calendário ---
 export const appointmentsTitle = document.getElementById('appointmentsTitle');
