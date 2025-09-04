@@ -105,7 +105,6 @@ async function handleListClick(e) {
     const id = target.dataset.id;
     if (!id) return;
     
-    // Ações de Edição
     if (target.matches('.edit-service-btn')) {
         const service = state.services.find(s => s.id === id);
         ModalManager.openServiceModal(service);
@@ -119,7 +118,6 @@ async function handleListClick(e) {
         ModalManager.openProfessionalModal(prof);
     }
 
-    // Ações de Exclusão
     if (target.matches('.delete-service-btn')) {
         if (await ModalManager.showConfirmModal('Tem certeza que deseja excluir este serviço?')) {
             FirestoreService.deleteService(id).catch(err => console.error(err));
@@ -127,7 +125,10 @@ async function handleListClick(e) {
     }
     if (target.matches('.delete-client-btn')) {
         if (await ModalManager.showConfirmModal('Tem certeza que deseja excluir este cliente?')) {
-            FirestoreService.deleteClient(id).catch(err => console.error(err));
+            FirestoreService.deleteClient(id).catch(err => {
+                console.error("Erro ao excluir cliente:", err);
+                alert("Você não tem permissão para excluir clientes.");
+            });
         }
     }
     if (target.matches('.delete-professional-btn')) {
@@ -136,7 +137,6 @@ async function handleListClick(e) {
         }
     }
 
-    // Outras ações
     if (target.matches('.whatsapp-btn')) {
         const client = state.clients.find(c => c.id === id);
         ModalManager.openWhatsAppMessageModal(client);
@@ -168,54 +168,59 @@ function handleAgendaClick(e) {
 }
 
 async function handleBlockModalActions(e) {
-    if (!e.target.matches('#deleteBlockBtn')) return;
-
-    const blockId = DOMElements.blockIdToEdit.value;
-    if (!blockId) return;
-
-    const confirmed = await ModalManager.showConfirmModal('Tem certeza que deseja excluir este bloqueio?');
-    if (confirmed) {
-        try {
-            await FirestoreService.deleteBlock(blockId);
-            ModalManager.hideAllModals();
-        } catch (error) {
-            console.error("Erro ao excluir bloqueio:", error);
-            alert("Não foi possível excluir o bloqueio.");
+    if (e.target.id === 'deleteBlockBtn') {
+        const blockId = DOMElements.blockIdToEdit.value;
+        if (await ModalManager.showConfirmModal('Tem certeza que deseja excluir este bloqueio?')) {
+            try {
+                await FirestoreService.deleteBlock(blockId);
+                // CORREÇÃO: Atualiza o estado local e a UI imediatamente
+                state.appointments = state.appointments.filter(app => app.id !== blockId);
+                refreshAllViews();
+                ModalManager.hideAllModals();
+            } catch (err) {
+                console.error('Erro ao excluir bloqueio:', err);
+                alert('Ocorreu um erro ao excluir o bloqueio.');
+            }
         }
     }
 }
 
+function handleActionChoice(e) {
+    const target = e.target;
+    if (target.id === 'newAppointmentChoiceBtn') {
+        ModalManager.openAppointmentModal(null, state.tempSlot.date, state.tempSlot.time);
+    } else if (target.id === 'blockTimeChoiceBtn') {
+        ModalManager.openBlockTimeModal();
+    } else if (target.id === 'cancelActionChoiceBtn') {
+        ModalManager.hideAllModals();
+    }
+}
 
 // --- Função de Inicialização ---
 
 export function initializeViewListeners() {
-    // Navegação Principal
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.addEventListener('click', handleNavClick);
     });
 
-    // Controles do Calendário e Financeiro
     DOMElements.agendaPage.addEventListener('click', handleCalendarControls);
     DOMElements.financeiroPage.addEventListener('click', handleCalendarControls);
     document.querySelector('.view-toggle').addEventListener('click', handleCalendarViewToggle);
     DOMElements.calendarDays.addEventListener('click', handleCalendarDayClick);
 
-    // Cliques em Listas (Delegação de Eventos)
     DOMElements.servicesList.addEventListener('click', handleListClick);
     DOMElements.clientsList.addEventListener('click', handleListClick);
     DOMElements.professionalsList.addEventListener('click', handleListClick);
 
-    // Cliques na Agenda
     DOMElements.appointmentsForDay.addEventListener('click', handleAgendaClick);
     DOMElements.dailyViewTimeSlots.addEventListener('click', handleAgendaClick);
-    
-    // Listener para ações dentro do modal de bloqueio (ex: deletar)
-    DOMElements.blockTimeModal.addEventListener('click', handleBlockModalActions);
 
-    // Botões para abrir modais
     DOMElements.openServiceModalBtn.addEventListener('click', () => ModalManager.openServiceModal());
     DOMElements.openClientModalBtn.addEventListener('click', () => ModalManager.openClientModal());
     DOMElements.openProfessionalModalBtn.addEventListener('click', () => ModalManager.openProfessionalModal());
     DOMElements.openBlockDayModalBtn.addEventListener('click', () => ModalManager.openBlockDayModal());
+
+    DOMElements.actionChoiceModal.addEventListener('click', handleActionChoice);
+    DOMElements.blockTimeModal.addEventListener('click', handleBlockModalActions);
 }
 
