@@ -47,6 +47,7 @@ export const openServiceModalBtn = document.getElementById('openServiceModalBtn'
 export const openProfessionalModalBtn = document.getElementById('openProfessionalModalBtn');
 export const openClientModalBtn = document.getElementById('openClientModalBtn');
 export const openBlockTimeModalBtn = document.getElementById('openBlockTimeModalBtn');
+export const openBlockDayModalBtn = document.getElementById('openBlockDayModalBtn');
 
 // --- Modais ---
 export const addServiceModal = document.getElementById('addServiceModal');
@@ -89,6 +90,14 @@ export const appointmentClient = document.getElementById('appointmentClient');
 export const appointmentProfessional = document.getElementById('appointmentProfessional');
 export const appointmentService = document.getElementById('appointmentService');
 export const blockIdToEdit = document.getElementById('blockIdToEdit');
+export const blockDayDate = document.getElementById('blockDayDate');
+
+// --- Perfil do Cliente ---
+export const profileClientName = document.getElementById('profileClientName');
+export const profileClientPhone = document.getElementById('profileClientPhone');
+export const profileClientAddress = document.getElementById('profileClientAddress');
+export const profileClientObservations = document.getElementById('profileClientObservations');
+export const anamnesisHistoryContainer = document.getElementById('anamnesisHistoryContainer');
 
 // --- Agenda e Calendário ---
 export const appointmentsTitle = document.getElementById('appointmentsTitle');
@@ -117,5 +126,3 @@ export const anamnesisClientName = document.getElementById('anamnesisClientName'
 export const anamnesisClientPhone = document.getElementById('anamnesisClientPhone');
 export const signaturePadCanvas = document.getElementById('signature-pad');
 export const clearSignatureBtn = document.getElementById('clearSignatureBtn');
-
-// ... (Adicione outros elementos conforme necessário)

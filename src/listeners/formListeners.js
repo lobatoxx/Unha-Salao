@@ -6,8 +6,6 @@ import * as FirestoreService from '../services/firestoreService.js';
 import * as ModalManager from '../ui/modalManager.js';
 
 // --- Lógica de Validação (Regras de Negócio) ---
-// Esta função verifica se há conflitos de horário para um profissional.
-// Em um projeto maior, ela poderia ir para um arquivo em /utils/validation.js
 function hasScheduleConflict({ id, professionalId, date, serviceId, duration: blockDuration }) {
     let duration = 0;
     if (serviceId) {
@@ -23,7 +21,7 @@ function hasScheduleConflict({ id, professionalId, date, serviceId, duration: bl
 
     for (const existingApp of state.appointments) {
         if (existingApp.professionalId !== professionalId) continue;
-        if (id && existingApp.id === id) continue; // Ignora o próprio agendamento ao editar
+        if (id && existingApp.id === id) continue;
 
         let existingDuration = 0;
         if (existingApp.type === 'block') {
@@ -37,12 +35,11 @@ function hasScheduleConflict({ id, professionalId, date, serviceId, duration: bl
         const existingStartTime = existingApp.date.getTime();
         const existingEndTime = existingStartTime + (existingDuration * 60000);
 
-        // Verifica a sobreposição
         if (newStartTime < existingEndTime && existingStartTime < newEndTime) {
-            return true; // Encontrou um conflito
+            return true;
         }
     }
-    return false; // Nenhum conflito
+    return false;
 }
 
 
@@ -89,7 +86,7 @@ async function handleProfessionalSubmit(e) {
     
     try {
         if (id) {
-            const { salonId, email, ...updateData } = data; // Não permite alterar email ou salonId
+            const { salonId, email, ...updateData } = data;
             await FirestoreService.updateProfessional(id, updateData);
         } else {
             await FirestoreService.addProfessional(data);
@@ -150,7 +147,7 @@ async function handleAppointmentSubmit(e) {
         professionalId: professionalId,
         serviceId: serviceId,
         type: 'booking',
-        status: id ? state.appointments.find(a => a.id === id).status : 'agendado', // Mantém status ao editar
+        status: id ? state.appointments.find(a => a.id === id).status : 'agendado',
         salonId: state.userSalonId
     };
 
@@ -191,7 +188,7 @@ async function handleAnamnesisSubmit(e) {
     const answers = Object.fromEntries(formData.entries());
     
     const newRecord = {
-        date: new Date(), // O serviço converterá para Timestamp
+        date: new Date(),
         answers: answers,
         signature: state.signaturePad.toDataURL()
     };
@@ -261,6 +258,50 @@ async function handleBlockTimeSubmit(e) {
         alert("Não foi possível salvar o bloqueio.");
     }
 }
+
+async function handleBlockDaySubmit(e) {
+    e.preventDefault();
+    const dateValue = new Date(state.selectedDate + 'T00:00:00');
+    
+    let professionalIds = [];
+    if (state.role === 'salonOwner') {
+        const selectedProfId = document.getElementById('blockDayProfessional').value;
+        if (selectedProfId) {
+            professionalIds.push(selectedProfId);
+        } else {
+            professionalIds = state.professionals.map(p => p.id);
+        }
+    } else {
+        professionalIds.push(state.professionalProfile.id);
+    }
+
+    if (professionalIds.length === 0) {
+        alert("Nenhum profissional selecionado para o bloqueio.");
+        return;
+    }
+
+    const promises = professionalIds.map(profId => {
+        const data = {
+            date: new Date(dateValue.setHours(8, 0, 0, 0)),
+            duration: 660, // 11 horas (das 8h às 19h)
+            professionalId: profId,
+            reason: 'Dia bloqueado',
+            type: 'block',
+            salonId: state.userSalonId,
+            status: 'bloqueado'
+        };
+        return FirestoreService.addAppointment(data);
+    });
+
+    try {
+        await Promise.all(promises);
+        ModalManager.hideAllModals();
+    } catch (err) {
+        console.error("Erro ao bloquear o dia:", err);
+        alert("Não foi possível bloquear o dia para um ou mais profissionais.");
+    }
+}
+
 // --- Função de Inicialização ---
 
 export function initializeFormListeners() {
@@ -270,5 +311,6 @@ export function initializeFormListeners() {
     DOMElements.addAppointmentForm.addEventListener('submit', handleAppointmentSubmit);
     DOMElements.anamnesisForm.addEventListener('submit', handleAnamnesisSubmit);
     DOMElements.blockTimeForm.addEventListener('submit', handleBlockTimeSubmit);
-    // Adicione outros listeners de formulário aqui (blockTime, observation, etc.)
+    DOMElements.blockDayForm.addEventListener('submit', handleBlockDaySubmit);
 }
+
