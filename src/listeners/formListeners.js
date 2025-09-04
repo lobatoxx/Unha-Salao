@@ -208,6 +208,59 @@ async function handleAnamnesisSubmit(e) {
     }
 }
 
+async function handleBlockTimeSubmit(e) {
+    e.preventDefault();
+    const id = DOMElements.blockIdToEdit.value;
+    const dateValue = DOMElements.blockDate.value;
+    const startTimeValue = document.getElementById('blockStartTime').value;
+    const endTimeValue = document.getElementById('blockEndTime').value;
+
+    const startDateTime = new Date(`${dateValue}T${startTimeValue}`);
+    const endDateTime = new Date(`${dateValue}T${endTimeValue}`);
+    
+    if (endDateTime <= startDateTime) {
+        alert("O horário de término deve ser posterior ao de início.");
+        return;
+    }
+
+    const duration = (endDateTime.getTime() - startDateTime.getTime()) / 60000;
+    
+    const professionalId = (state.role === 'salonOwner') 
+        ? document.getElementById('blockProfessional').value 
+        : state.professionalProfile.id;
+
+    if (!professionalId) {
+        alert("Selecione um profissional.");
+        return;
+    }
+
+    if (hasScheduleConflict({ id, professionalId, date: startDateTime, duration: duration })) {
+        alert("Conflito de agenda! Este profissional já tem um compromisso neste horário.");
+        return;
+    }
+
+    const data = {
+        date: startDateTime,
+        duration: duration,
+        professionalId: professionalId,
+        reason: document.getElementById('blockReason').value,
+        type: 'block',
+        salonId: state.userSalonId,
+        status: 'bloqueado'
+    };
+
+    try {
+        if (id) {
+            await FirestoreService.updateAppointment(id, data);
+        } else {
+            await FirestoreService.addAppointment(data);
+        }
+        ModalManager.hideAllModals();
+    } catch (err) {
+        console.error("Erro ao salvar bloqueio:", err);
+        alert("Não foi possível salvar o bloqueio.");
+    }
+}
 // --- Função de Inicialização ---
 
 export function initializeFormListeners() {
@@ -216,5 +269,6 @@ export function initializeFormListeners() {
     DOMElements.addClientForm.addEventListener('submit', handleClientSubmit);
     DOMElements.addAppointmentForm.addEventListener('submit', handleAppointmentSubmit);
     DOMElements.anamnesisForm.addEventListener('submit', handleAnamnesisSubmit);
+    DOMElements.blockTimeForm.addEventListener('submit', handleBlockTimeSubmit);
     // Adicione outros listeners de formulário aqui (blockTime, observation, etc.)
 }

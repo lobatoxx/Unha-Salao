@@ -163,14 +163,35 @@ function handleAgendaClick(e) {
         const app = state.appointments.find(a => a.id === appId);
         if (app) {
             if (app.type === 'block') {
-                // ModalManager.openBlockTimeModal(app);
-                alert('Abertura de edição de bloqueio a ser implementada.');
+                // Abre o modal de edição de bloqueio
+                ModalManager.openBlockTimeModal(app);
             } else {
                 ModalManager.openAppointmentModal(app);
             }
         }
     }
 }
+
+function handleActionChoice(e) {
+    const target = e.target.closest('button');
+    if (!target) return;
+
+    if (target.id === 'newAppointmentChoiceBtn') {
+        ModalManager.hideAllModals();
+        document.getElementById('appointmentTime').value = state.tempSlot.time;
+        ModalManager.openAppointmentModal(null, state.tempSlot.date);
+    }
+    
+    if (target.id === 'blockTimeChoiceBtn') {
+        ModalManager.hideAllModals();
+        ModalManager.openBlockTimeModal(); 
+    }
+    
+    if (target.id === 'cancelActionChoiceBtn') {
+        ModalManager.hideAllModals();
+    }
+}
+
 
 
 // --- Função de Inicialização ---
@@ -200,4 +221,11 @@ export function initializeViewListeners() {
     DOMElements.openServiceModalBtn.addEventListener('click', () => ModalManager.openServiceModal());
     DOMElements.openClientModalBtn.addEventListener('click', () => ModalManager.openClientModal());
     DOMElements.openProfessionalModalBtn.addEventListener('click', () => ModalManager.openProfessionalModal());
+    DOMElements.openBlockTimeModalBtn.addEventListener('click', () => {
+        state.tempSlot = { date: state.selectedDate, time: '' };
+        ModalManager.openBlockTimeModal();
+    });
+
+    // Listener para o modal de escolha de ação
+    DOMElements.actionChoiceModal.addEventListener('click', handleActionChoice);
 }

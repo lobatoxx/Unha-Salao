@@ -187,6 +187,57 @@ export function openWhatsAppMessageModal(client) {
     });
 
     DOMElements.whatsappMessageModal.classList.remove('hidden');
+
+    
 }
+
+export function openActionChoiceModal() {
+    DOMElements.actionChoiceModal.classList.remove('hidden');
+}
+
+export function openBlockTimeModal(block = null) {
+    DOMElements.blockTimeForm.reset();
+    const deleteBtn = document.getElementById('deleteBlockBtn');
+    
+    // Mostra/esconde view de admin vs profissional
+    const isAdminView = state.role === 'salonOwner';
+    document.getElementById('blockProfessionalAdminView').style.display = isAdminView ? 'block' : 'none';
+    document.getElementById('blockProfessionalUserView').style.display = !isAdminView ? 'block' : 'none';
+
+    if (isAdminView) {
+        document.getElementById('blockProfessional').innerHTML = '<option value="">Selecione um profissional</option>' + state.professionals.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    } else {
+        document.getElementById('blockProfessionalName').textContent = state.professionalProfile.name;
+    }
+
+    if (block) {
+        // Lógica para editar um bloqueio existente
+        DOMElements.blockTimeModalTitle.textContent = 'Editar Bloqueio';
+        DOMElements.blockIdToEdit.value = block.id;
+        DOMElements.blockDate.value = block.date.toISOString().split('T')[0];
+        DOMElements.blockStartTime.value = block.date.toTimeString().substring(0, 5);
+        const endTime = new Date(block.date.getTime() + block.duration * 60000);
+        DOMElements.blockEndTime.value = endTime.toTimeString().substring(0, 5);
+        DOMElements.blockReason.value = block.reason || '';
+        if (isAdminView) {
+            document.getElementById('blockProfessional').value = block.professionalId;
+        }
+        deleteBtn.classList.remove('hidden');
+    } else {
+        // Lógica para criar um novo bloqueio
+        DOMElements.blockTimeModalTitle.textContent = 'Bloquear Horário';
+        DOMElements.blockIdToEdit.value = '';
+        DOMElements.blockDate.value = state.tempSlot.date;
+        DOMElements.blockStartTime.value = state.tempSlot.time;
+        DOMElements.blockEndTime.value = '';
+        DOMElements.blockReason.value = '';
+        deleteBtn.classList.add('hidden');
+    }
+    DOMElements.blockTimeModal.classList.remove('hidden');
+}
+
+
+// ... (Poderíamos adicionar os outros gerenciadores de modais aqui, como openClientProfileModal, etc., seguindo o mesmo padrão)
+
 
 // ... (Poderíamos adicionar os outros gerenciadores de modais aqui, como openBlockTimeModal, openClientProfileModal, etc., seguindo o mesmo padrão)
