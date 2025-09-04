@@ -5,7 +5,6 @@ import * as DOMElements from '../ui/domElements.js';
 import * as Renderer from '../ui/renderer.js';
 import * as ModalManager from '../ui/modalManager.js';
 import * as FirestoreService from '../services/firestoreService.js';
-import { exportAnamnesisToPDF } from '../utils/pdfGenerator.js';
 
 // --- Funções Auxiliares ---
 function refreshAllViews() {
@@ -28,7 +27,7 @@ function handleNavClick(e) {
     document.getElementById(pageId)?.classList.add('active');
 
     document.querySelectorAll('.nav-btn').forEach(nav => {
-        nav.classList.remove('text-pink-500', 'font-bold');
+        nav.classList.remove('text-pink-500');
         nav.classList.add('text-gray-400');
         nav.querySelector('p').classList.remove('font-bold');
     });
@@ -42,28 +41,31 @@ function handleCalendarControls(e) {
     if (!target) return;
 
     const isDailyView = !DOMElements.dailyView.classList.contains('hidden');
-    let dateToUpdate = isDailyView ? new Date(state.selectedDate + 'T00:00:00') : state.currentDate;
 
     if (target.id === 'prevMonthBtn') {
         if (isDailyView) {
-            dateToUpdate.setDate(dateToUpdate.getDate() - 1);
-            state.selectedDate = dateToUpdate.toISOString().split('T')[0];
+            const currentDate = new Date(state.selectedDate + 'T00:00:00');
+            currentDate.setDate(currentDate.getDate() - 1);
+            state.selectedDate = currentDate.toISOString().split('T')[0];
+            state.currentDate = currentDate; 
         } else {
-            dateToUpdate.setMonth(dateToUpdate.getMonth() - 1);
+            state.currentDate.setMonth(state.currentDate.getMonth() - 1);
         }
     } else if (target.id === 'nextMonthBtn') {
         if (isDailyView) {
-            dateToUpdate.setDate(dateToUpdate.getDate() + 1);
-            state.selectedDate = dateToUpdate.toISOString().split('T')[0];
+            const currentDate = new Date(state.selectedDate + 'T00:00:00');
+            currentDate.setDate(currentDate.getDate() + 1);
+            state.selectedDate = currentDate.toISOString().split('T')[0];
+            state.currentDate = currentDate;
         } else {
-            dateToUpdate.setMonth(dateToUpdate.getMonth() + 1);
+            state.currentDate.setMonth(state.currentDate.getMonth() + 1);
         }
     } else if (target.id === 'financeiroPrevMonthBtn') {
         state.currentDate.setMonth(state.currentDate.getMonth() - 1);
     } else if (target.id === 'financeiroNextMonthBtn') {
         state.currentDate.setMonth(state.currentDate.getMonth() + 1);
     }
-    state.currentDate = new Date(dateToUpdate); // Sincroniza currentDate
+
     refreshAllViews();
 }
 
@@ -71,74 +73,85 @@ function handleCalendarViewToggle(e) {
     const target = e.target.closest('button');
     if (!target) return;
 
-    DOMElements.monthlyView.style.display = (target.id === 'monthViewBtn') ? 'block' : 'none';
-    DOMElements.dailyView.classList.toggle('hidden', target.id === 'monthViewBtn');
-    DOMElements.monthViewBtn.classList.toggle('active', target.id === 'monthViewBtn');
-    DOMElements.dayViewBtn.classList.toggle('active', target.id === 'dayViewBtn');
-    
+    if (target.id === 'monthViewBtn') {
+        DOMElements.monthlyView.style.display = 'block';
+        DOMElements.dailyView.classList.add('hidden');
+        DOMElements.monthViewBtn.classList.add('active');
+        DOMElements.dayViewBtn.classList.remove('active');
+    } else if (target.id === 'dayViewBtn') {
+        DOMElements.monthlyView.style.display = 'none';
+        DOMElements.dailyView.classList.remove('hidden');
+        DOMElements.monthViewBtn.classList.remove('active');
+        DOMElements.dayViewBtn.classList.add('active');
+    }
     refreshAllViews();
 }
 
 function handleCalendarDayClick(e) {
-    const dayEl = e.target.closest('.calendar-day[data-date]');
-    if (dayEl) {
+    const dayEl = e.target.closest('.calendar-day');
+    if (dayEl && dayEl.dataset.date) {
+        document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('day-selected'));
+        dayEl.classList.add('day-selected');
         state.selectedDate = dayEl.dataset.date;
+        Renderer.renderAppointmentsForDay();
         DOMElements.dayViewBtn.click();
     }
 }
 
 async function handleListClick(e) {
-    const button = e.target.closest('button');
-    if (!button || !button.dataset.id) return;
+    const target = e.target.closest('button');
+    if (!target) return;
 
-    const id = button.dataset.id;
-    const action = Array.from(button.classList).find(cls => cls.startsWith('edit-') || cls.startsWith('delete-'));
-
-    if (!action) return;
-
-    const [type, entity] = action.replace('-btn', '').split('-');
-
-    const actions = {
-        'edit': {
-            'service': () => ModalManager.openServiceModal(state.services.find(s => s.id === id)),
-            'client': () => ModalManager.openClientModal(state.clients.find(c => c.id === id)),
-            'professional': () => ModalManager.openProfessionalModal(state.professionals.find(p => p.id === id)),
-        },
-        'delete': {
-            'service': () => FirestoreService.deleteService(id),
-            'client': () => FirestoreService.deleteClient(id),
-            'professional': () => FirestoreService.deleteProfessional(id),
-        }
-    };
+    const id = target.dataset.id;
+    if (!id) return;
     
-    if (actions[type] && actions[type][entity]) {
-        if (type === 'delete') {
-            if (await ModalManager.showConfirmModal(`Tem certeza que deseja excluir este ${entity}?`)) {
-                actions[type][entity]().catch(err => console.error(err));
-            }
-        } else {
-            actions[type][entity]();
+    // Ações de Edição
+    if (target.matches('.edit-service-btn')) {
+        const service = state.services.find(s => s.id === id);
+        ModalManager.openServiceModal(service);
+    }
+    if (target.matches('.edit-client-btn')) {
+        const client = state.clients.find(c => c.id === id);
+        ModalManager.openClientModal(client);
+    }
+    if (target.matches('.edit-professional-btn')) {
+        const prof = state.professionals.find(p => p.id === id);
+        ModalManager.openProfessionalModal(prof);
+    }
+
+    // Ações de Exclusão
+    if (target.matches('.delete-service-btn')) {
+        if (await ModalManager.showConfirmModal('Tem certeza que deseja excluir este serviço?')) {
+            FirestoreService.deleteService(id).catch(err => console.error(err));
         }
     }
-}
+    if (target.matches('.delete-client-btn')) {
+        if (await ModalManager.showConfirmModal('Tem certeza que deseja excluir este cliente?')) {
+            FirestoreService.deleteClient(id).catch(err => console.error(err));
+        }
+    }
+    if (target.matches('.delete-professional-btn')) {
+        if (await ModalManager.showConfirmModal('Tem certeza que deseja excluir este profissional?')) {
+            FirestoreService.deleteProfessional(id).catch(err => console.error(err));
+        }
+    }
 
-function handleClientsListClick(e) {
-    const profileBtn = e.target.closest('.client-profile-btn');
-    const whatsappBtn = e.target.closest('.whatsapp-btn');
-    
-    if (profileBtn) {
-        const client = state.clients.find(c => c.id === profileBtn.dataset.id);
-        ModalManager.openClientProfileModal(client);
-    } else if (whatsappBtn) {
-        const client = state.clients.find(c => c.id === whatsappBtn.dataset.id);
+    // Outras ações
+    if (target.matches('.whatsapp-btn')) {
+        const client = state.clients.find(c => c.id === id);
         ModalManager.openWhatsAppMessageModal(client);
-    } else {
-        handleListClick(e);
+    }
+    
+    const profileBtn = e.target.closest('.client-profile-btn');
+    if (profileBtn) {
+        ModalManager.openClientProfileModal(profileBtn.dataset.id);
     }
 }
 
 function handleAgendaClick(e) {
-    if (e.target.closest('.whatsapp-btn')) return;
+    if (e.target.closest('.whatsapp-btn')) {
+        return;
+    }
 
     const itemCard = e.target.closest('[data-id]');
     if (itemCard) {
@@ -154,56 +167,55 @@ function handleAgendaClick(e) {
     }
 }
 
-function handleActionChoice(e) {
-    const target = e.target.closest('button');
-    if (!target) return;
-    ModalManager.hideAllModals();
+async function handleBlockModalActions(e) {
+    if (!e.target.matches('#deleteBlockBtn')) return;
 
-    if (target.id === 'newAppointmentChoiceBtn') {
-        ModalManager.openAppointmentModal(null, state.tempSlot.date, state.tempSlot.time);
-    } else if (target.id === 'blockTimeChoiceBtn') {
-        ModalManager.openBlockTimeModal(); 
+    const blockId = DOMElements.blockIdToEdit.value;
+    if (!blockId) return;
+
+    const confirmed = await ModalManager.showConfirmModal('Tem certeza que deseja excluir este bloqueio?');
+    if (confirmed) {
+        try {
+            await FirestoreService.deleteBlock(blockId);
+            ModalManager.hideAllModals();
+        } catch (error) {
+            console.error("Erro ao excluir bloqueio:", error);
+            alert("Não foi possível excluir o bloqueio.");
+        }
     }
 }
 
-function handleAnamnesisHistoryClick(e) {
-    const exportBtn = e.target.closest('.export-anamnesis-btn');
-    if (exportBtn) {
-        const { clientId, recordDate } = exportBtn.dataset;
-        const client = state.clients.find(c => c.id === clientId);
-        const record = client?.anamnesisHistory?.find(rec => rec.date.toDate().toISOString() === recordDate);
-        if (client && record) exportAnamnesisToPDF(client, record);
-    }
-}
 
 // --- Função de Inicialização ---
 
 export function initializeViewListeners() {
-    document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', handleNavClick));
-    
+    // Navegação Principal
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', handleNavClick);
+    });
+
+    // Controles do Calendário e Financeiro
     DOMElements.agendaPage.addEventListener('click', handleCalendarControls);
     DOMElements.financeiroPage.addEventListener('click', handleCalendarControls);
     document.querySelector('.view-toggle').addEventListener('click', handleCalendarViewToggle);
     DOMElements.calendarDays.addEventListener('click', handleCalendarDayClick);
 
+    // Cliques em Listas (Delegação de Eventos)
     DOMElements.servicesList.addEventListener('click', handleListClick);
+    DOMElements.clientsList.addEventListener('click', handleListClick);
     DOMElements.professionalsList.addEventListener('click', handleListClick);
-    DOMElements.clientsList.addEventListener('click', handleClientsListClick);
 
+    // Cliques na Agenda
     DOMElements.appointmentsForDay.addEventListener('click', handleAgendaClick);
     DOMElements.dailyViewTimeSlots.addEventListener('click', handleAgendaClick);
-    DOMElements.actionChoiceModal.addEventListener('click', handleActionChoice);
     
-    if(DOMElements.anamnesisHistoryContainer) {
-        DOMElements.anamnesisHistoryContainer.addEventListener('click', handleAnamnesisHistoryClick);
-    }
+    // Listener para ações dentro do modal de bloqueio (ex: deletar)
+    DOMElements.blockTimeModal.addEventListener('click', handleBlockModalActions);
 
+    // Botões para abrir modais
     DOMElements.openServiceModalBtn.addEventListener('click', () => ModalManager.openServiceModal());
     DOMElements.openClientModalBtn.addEventListener('click', () => ModalManager.openClientModal());
     DOMElements.openProfessionalModalBtn.addEventListener('click', () => ModalManager.openProfessionalModal());
-    
-    if (DOMElements.openBlockDayModalBtn) {
-        DOMElements.openBlockDayModalBtn.addEventListener('click', ModalManager.openBlockDayModal);
-    }
+    DOMElements.openBlockDayModalBtn.addEventListener('click', () => ModalManager.openBlockDayModal());
 }
 

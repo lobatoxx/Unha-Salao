@@ -82,3 +82,7 @@ export const updateAppointmentStatus = (id, status, observation = null) => {
     return updateDoc(doc(db, 'appointments', id), dataToUpdate);
 };
 export const deleteAppointment = (id) => deleteDoc(doc(db, 'appointments', id));
+
+// --- API de Bloqueios (usa a mesma coleção de agendamentos) ---
+// Adicionada função para clareza, embora apenas chame deleteAppointment
+export const deleteBlock = (id) => deleteAppointment(id);
