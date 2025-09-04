@@ -17,6 +17,13 @@ function renderAll() {
     Renderer.updateUIVisibility();
 }
 
+/**
+ * Adiciona uma pequena pausa para resolver condições de corrida.
+ * @param {number} ms - Milissegundos para esperar.
+ * @returns {Promise<void>}
+ */
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 export function initializeAuthListener() {
     onAuthStateChanged(auth, async (user) => {
         state.unsubscribes.forEach(unsub => unsub());
@@ -26,7 +33,17 @@ export function initializeAuthListener() {
             try {
                 let userContext = null;
                 const userDocRef = doc(db, 'users', user.uid);
-                const userDocSnap = await getDoc(userDocRef);
+                let userDocSnap = await getDoc(userDocRef);
+
+                // --- INÍCIO DA CORREÇÃO DA CONDIÇÃO DE CORRIDA ---
+                // Se o documento do usuário não existe na primeira tentativa (durante o registro),
+                // esperamos um pouco e tentamos novamente.
+                if (!userDocSnap.exists()) {
+                    console.log("Documento de utilizador não encontrado, tentando novamente em 1 segundo...");
+                    await sleep(1000); // Espera 1 segundo
+                    userDocSnap = await getDoc(userDocRef); // Tenta buscar o documento de novo
+                }
+                // --- FIM DA CORREÇÃO ---
 
                 if (userDocSnap.exists()) {
                     // Caminho Rápido: O utilizador já tem um perfil de índice.
@@ -43,10 +60,10 @@ export function initializeAuthListener() {
                             salonId: salonDoc.id,
                             role: 'salonOwner'
                         };
-                        // Cria o documento de índice para que nas próximas vezes o login seja mais rápido.
                         await setDoc(userDocRef, userContext);
                         console.log("Dono de salão migrado com sucesso.");
                     } else {
+                        // Se mesmo após a retentativa e a verificação de migração não encontrar nada, aí sim é um erro.
                         throw new Error("Utilizador não está associado a nenhum salão.");
                     }
                 }
@@ -92,4 +109,3 @@ export function initializeAuthListener() {
         setTimeout(() => DOMElements.loadingOverlay.classList.add('hidden'), 500);
     });
 }
-
