@@ -100,58 +100,40 @@ function handleCalendarDayClick(e) {
 
 async function handleListClick(e) {
     const target = e.target.closest('button');
-    if (!target) return;
+    const profileBtn = e.target.closest('.client-profile-btn');
 
-    const id = target.dataset.id;
+    if (!target && !profileBtn) return;
+    
+    const id = target?.dataset.id || profileBtn?.dataset.id;
     if (!id) return;
     
-    if (target.matches('.edit-service-btn')) {
-        const service = state.services.find(s => s.id === id);
-        ModalManager.openServiceModal(service);
-    }
-    if (target.matches('.edit-client-btn')) {
-        const client = state.clients.find(c => c.id === id);
-        ModalManager.openClientModal(client);
-    }
-    if (target.matches('.edit-professional-btn')) {
-        const prof = state.professionals.find(p => p.id === id);
-        ModalManager.openProfessionalModal(prof);
-    }
+    if (target?.matches('.edit-service-btn')) ModalManager.openServiceModal(state.services.find(s => s.id === id));
+    if (target?.matches('.edit-client-btn')) ModalManager.openClientModal(state.clients.find(c => c.id === id));
+    if (target?.matches('.edit-professional-btn')) ModalManager.openProfessionalModal(state.professionals.find(p => p.id === id));
 
-    if (target.matches('.delete-service-btn')) {
+    if (target?.matches('.delete-service-btn')) {
         if (await ModalManager.showConfirmModal('Tem certeza que deseja excluir este serviço?')) {
-            FirestoreService.deleteService(id).catch(err => console.error(err));
+            FirestoreService.deleteService(id).catch(err => console.error("Erro ao excluir serviço:", err));
         }
     }
-    if (target.matches('.delete-client-btn')) {
+    if (target?.matches('.delete-client-btn')) {
         if (await ModalManager.showConfirmModal('Tem certeza que deseja excluir este cliente?')) {
-            FirestoreService.deleteClient(id).catch(err => {
-                console.error("Erro ao excluir cliente:", err);
-                alert("Você não tem permissão para excluir clientes.");
-            });
+            FirestoreService.deleteClient(id).catch(err => console.error("Erro ao excluir cliente:", err));
         }
     }
-    if (target.matches('.delete-professional-btn')) {
+    if (target?.matches('.delete-professional-btn')) {
         if (await ModalManager.showConfirmModal('Tem certeza que deseja excluir este profissional?')) {
-            FirestoreService.deleteProfessional(id).catch(err => console.error(err));
+            FirestoreService.deleteProfessional(id).catch(err => console.error("Erro ao excluir profissional:", err));
         }
     }
 
-    if (target.matches('.whatsapp-btn')) {
-        const client = state.clients.find(c => c.id === id);
-        ModalManager.openWhatsAppMessageModal(client);
-    }
+    if (target?.matches('.whatsapp-btn')) ModalManager.openWhatsAppMessageModal(state.clients.find(c => c.id === id));
     
-    const profileBtn = e.target.closest('.client-profile-btn');
-    if (profileBtn) {
-        ModalManager.openClientProfileModal(profileBtn.dataset.id);
-    }
+    if (profileBtn) ModalManager.openClientProfileModal(id);
 }
 
 function handleAgendaClick(e) {
-    if (e.target.closest('.whatsapp-btn')) {
-        return;
-    }
+    if (e.target.closest('.whatsapp-btn')) return;
 
     const itemCard = e.target.closest('[data-id]');
     if (itemCard) {
@@ -167,42 +149,46 @@ function handleAgendaClick(e) {
     }
 }
 
-async function handleBlockModalActions(e) {
-    if (e.target.id === 'deleteBlockBtn') {
-        const blockId = DOMElements.blockIdToEdit.value;
-        if (await ModalManager.showConfirmModal('Tem certeza que deseja excluir este bloqueio?')) {
-            try {
-                await FirestoreService.deleteBlock(blockId);
-                // CORREÇÃO: Atualiza o estado local e a UI imediatamente
-                state.appointments = state.appointments.filter(app => app.id !== blockId);
-                refreshAllViews();
-                ModalManager.hideAllModals();
-            } catch (err) {
-                console.error('Erro ao excluir bloqueio:', err);
-                alert('Ocorreu um erro ao excluir o bloqueio.');
-            }
-        }
-    }
-}
-
 function handleActionChoice(e) {
-    const target = e.target;
+    const target = e.target.closest('button');
+    if (!target) return;
+
+    const { date, time } = state.tempSlot;
+
     if (target.id === 'newAppointmentChoiceBtn') {
-        ModalManager.openAppointmentModal(null, state.tempSlot.date, state.tempSlot.time);
+        ModalManager.hideAllModals(); // Esconde o modal de escolha PRIMEIRO
+        ModalManager.openAppointmentModal(null, date, time);
     } else if (target.id === 'blockTimeChoiceBtn') {
+        ModalManager.hideAllModals(); // Esconde o modal de escolha PRIMEIRO
         ModalManager.openBlockTimeModal();
     } else if (target.id === 'cancelActionChoiceBtn') {
         ModalManager.hideAllModals();
     }
 }
 
+async function handleBlockModalActions(e) {
+    const target = e.target.closest('button');
+    if (!target || !target.matches('#deleteBlockBtn')) return;
+
+    const blockId = DOMElements.blockIdToEdit.value;
+    if (!blockId) return;
+
+    if (await ModalManager.showConfirmModal('Tem certeza que deseja excluir este bloqueio?')) {
+        try {
+            await FirestoreService.deleteBlock(blockId);
+            ModalManager.hideAllModals();
+        } catch (err) {
+            console.error("Erro ao excluir bloqueio:", err);
+            alert("Não foi possível excluir o bloqueio.");
+        }
+    }
+}
+
 // --- Função de Inicialização ---
 
 export function initializeViewListeners() {
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.addEventListener('click', handleNavClick);
-    });
-
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', handleNavClick));
+    
     DOMElements.agendaPage.addEventListener('click', handleCalendarControls);
     DOMElements.financeiroPage.addEventListener('click', handleCalendarControls);
     document.querySelector('.view-toggle').addEventListener('click', handleCalendarViewToggle);
@@ -214,13 +200,13 @@ export function initializeViewListeners() {
 
     DOMElements.appointmentsForDay.addEventListener('click', handleAgendaClick);
     DOMElements.dailyViewTimeSlots.addEventListener('click', handleAgendaClick);
+    
+    DOMElements.actionChoiceModal.addEventListener('click', handleActionChoice);
+    DOMElements.blockTimeModal.addEventListener('click', handleBlockModalActions);
 
     DOMElements.openServiceModalBtn.addEventListener('click', () => ModalManager.openServiceModal());
     DOMElements.openClientModalBtn.addEventListener('click', () => ModalManager.openClientModal());
     DOMElements.openProfessionalModalBtn.addEventListener('click', () => ModalManager.openProfessionalModal());
     DOMElements.openBlockDayModalBtn.addEventListener('click', () => ModalManager.openBlockDayModal());
-
-    DOMElements.actionChoiceModal.addEventListener('click', handleActionChoice);
-    DOMElements.blockTimeModal.addEventListener('click', handleBlockModalActions);
 }
 
