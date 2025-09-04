@@ -48,6 +48,7 @@ export const openProfessionalModalBtn = document.getElementById('openProfessiona
 export const openClientModalBtn = document.getElementById('openClientModalBtn');
 export const openBlockDayModalBtn = document.getElementById('openBlockDayModalBtn');
 
+
 // --- Modais ---
 export const addServiceModal = document.getElementById('addServiceModal');
 export const addProfessionalModal = document.getElementById('addProfessionalModal');
@@ -58,14 +59,10 @@ export const blockTimeModal = document.getElementById('blockTimeModal');
 export const blockDayModal = document.getElementById('blockDayModal');
 export const observationModal = document.getElementById('observationModal');
 export const whatsappMessageModal = document.getElementById('whatsappMessageModal');
-export const reminderModal = document.getElementById('reminderModal');
+export const reminderModal = document.getElementById('reminderModal'); // <-- REFERÊNCIA ADICIONADA
 export const anamnesisModal = document.getElementById('anamnesisModal');
 export const actionChoiceModal = document.getElementById('actionChoiceModal');
 export const confirmModal = document.getElementById('confirmModal');
-export const confirmModalText = document.getElementById('confirmModalText');
-export const confirmModalOk = document.getElementById('confirmModalOk');
-export const confirmModalCancel = document.getElementById('confirmModalCancel');
-
 
 // --- Formulários ---
 export const addServiceForm = document.getElementById('addServiceForm');
@@ -77,7 +74,7 @@ export const blockDayForm = document.getElementById('blockDayForm');
 export const observationForm = document.getElementById('observationForm');
 export const anamnesisForm = document.getElementById('anamnesisForm');
 
-// --- Campos de Formulário e Títulos de Modal (Inputs, selects, etc.) ---
+// --- Campos de Formulário e Títulos de Modal ---
 export const serviceModalTitle = document.getElementById('serviceModalTitle');
 export const serviceIdToEdit = document.getElementById('serviceIdToEdit');
 export const professionalModalTitle = document.getElementById('professionalModalTitle');
@@ -92,26 +89,39 @@ export const appointmentTime = document.getElementById('appointmentTime');
 export const appointmentClient = document.getElementById('appointmentClient');
 export const appointmentProfessional = document.getElementById('appointmentProfessional');
 export const appointmentService = document.getElementById('appointmentService');
+export const deleteAppointmentBtn = document.getElementById('deleteAppointmentBtn');
+export const startAppointmentAction = document.getElementById('startAppointmentAction');
+export const editAppointmentActions = document.getElementById('editAppointmentActions');
+export const appointmentObservationDisplay = document.getElementById('appointmentObservationDisplay');
+export const appointmentObservationText = document.getElementById('appointmentObservationText');
 
-// Campos do Modal de Bloqueio de Horário
 export const blockIdToEdit = document.getElementById('blockIdToEdit');
-export const deleteBlockBtn = document.getElementById('deleteBlockBtn');
 export const blockDate = document.getElementById('blockDate');
 export const blockStartTime = document.getElementById('blockStartTime');
 export const blockEndTime = document.getElementById('blockEndTime');
 export const blockReason = document.getElementById('blockReason');
+export const blockProfessional = document.getElementById('blockProfessional');
+export const deleteBlockBtn = document.getElementById('deleteBlockBtn');
 export const blockProfessionalAdminView = document.getElementById('blockProfessionalAdminView');
 export const blockProfessionalUserView = document.getElementById('blockProfessionalUserView');
-export const blockProfessional = document.getElementById('blockProfessional');
 export const blockProfessionalName = document.getElementById('blockProfessionalName');
 
-// Campos do Modal de Bloqueio de Dia
 export const blockDayDate = document.getElementById('blockDayDate');
+export const blockDayProfessional = document.getElementById('blockDayProfessional');
 export const blockDayProfessionalAdminView = document.getElementById('blockDayProfessionalAdminView');
 export const blockDayProfessionalUserView = document.getElementById('blockDayProfessionalUserView');
-export const blockDayProfessional = document.getElementById('blockDayProfessional');
 export const blockDayProfessionalName = document.getElementById('blockDayProfessionalName');
 
+export const confirmModalText = document.getElementById('confirmModalText');
+export const confirmModalOk = document.getElementById('confirmModalOk');
+export const confirmModalCancel = document.getElementById('confirmModalCancel');
+
+// --- Perfil do Cliente ---
+export const profileClientName = document.getElementById('profileClientName');
+export const profileClientPhone = document.getElementById('profileClientPhone');
+export const profileClientAddress = document.getElementById('profileClientAddress');
+export const profileClientObservations = document.getElementById('profileClientObservations');
+export const anamnesisHistoryContainer = document.getElementById('anamnesisHistoryContainer');
 
 // --- Agenda e Calendário ---
 export const appointmentsTitle = document.getElementById('appointmentsTitle');
@@ -136,15 +146,10 @@ export const adminFinancialDetails = document.getElementById('adminFinancialDeta
 export const professionalFinancialSummary = document.getElementById('professionalFinancialSummary');
 
 // --- Anamnese e Assinatura ---
+export const anamnesisAppointmentId = document.getElementById('anamnesisAppointmentId');
+export const anamnesisClientId = document.getElementById('anamnesisClientId');
 export const anamnesisClientName = document.getElementById('anamnesisClientName');
 export const anamnesisClientPhone = document.getElementById('anamnesisClientPhone');
 export const signaturePadCanvas = document.getElementById('signature-pad');
 export const clearSignatureBtn = document.getElementById('clearSignatureBtn');
-
-// --- Perfil do Cliente ---
-export const profileClientName = document.getElementById('profileClientName');
-export const profileClientPhone = document.getElementById('profileClientPhone');
-export const profileClientAddress = document.getElementById('profileClientAddress');
-export const profileClientObservations = document.getElementById('profileClientObservations');
-export const anamnesisHistoryContainer = document.getElementById('anamnesisHistoryContainer');
 
