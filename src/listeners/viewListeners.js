@@ -156,13 +156,60 @@ function handleActionChoice(e) {
     const { date, time } = state.tempSlot;
 
     if (target.id === 'newAppointmentChoiceBtn') {
-        ModalManager.hideAllModals(); // Esconde o modal de escolha PRIMEIRO
+        ModalManager.hideAllModals();
         ModalManager.openAppointmentModal(null, date, time);
     } else if (target.id === 'blockTimeChoiceBtn') {
-        ModalManager.hideAllModals(); // Esconde o modal de escolha PRIMEIRO
+        ModalManager.hideAllModals();
         ModalManager.openBlockTimeModal();
     } else if (target.id === 'cancelActionChoiceBtn') {
         ModalManager.hideAllModals();
+    }
+}
+
+async function handleAppointmentModalActions(e) {
+    const target = e.target.closest('button');
+    if (!target) return;
+
+    const appointmentId = DOMElements.appointmentIdToEdit.value;
+    if (!appointmentId) return;
+
+    const appointment = state.appointments.find(a => a.id === appointmentId);
+    if (!appointment) return;
+
+    // Iniciar Atendimento -> Abre Anamnese
+    if (target.id === 'startAppointmentBtn') {
+        ModalManager.openAnamnesisModal(appointment);
+    }
+    
+    // Faturar -> Abre modal de observação
+    if (target.id === 'invoiceAppointmentBtn') {
+        ModalManager.openObservationModal(appointment);
+    }
+
+    // Cancelar Agendamento
+    if (target.id === 'cancelAppointmentBtn') {
+        if (await ModalManager.showConfirmModal('Tem certeza que deseja cancelar este atendimento?')) {
+            try {
+                await FirestoreService.updateAppointmentStatus(appointmentId, 'cancelado');
+                ModalManager.hideAllModals();
+            } catch (err) {
+                console.error("Erro ao cancelar agendamento:", err);
+                alert("Não foi possível cancelar o agendamento.");
+            }
+        }
+    }
+
+    // Excluir Agendamento
+    if (target.id === 'deleteAppointmentBtn') {
+        if (await ModalManager.showConfirmModal('Tem certeza que deseja EXCLUIR permanentemente este agendamento? Esta ação não pode ser desfeita.')) {
+            try {
+                await FirestoreService.deleteAppointment(appointmentId);
+                ModalManager.hideAllModals();
+            } catch (err) {
+                console.error("Erro ao excluir agendamento:", err);
+                alert("Não foi possível excluir o agendamento.");
+            }
+        }
     }
 }
 
@@ -202,6 +249,7 @@ export function initializeViewListeners() {
     DOMElements.dailyViewTimeSlots.addEventListener('click', handleAgendaClick);
     
     DOMElements.actionChoiceModal.addEventListener('click', handleActionChoice);
+    DOMElements.addAppointmentModal.addEventListener('click', handleAppointmentModalActions);
     DOMElements.blockTimeModal.addEventListener('click', handleBlockModalActions);
 
     DOMElements.openServiceModalBtn.addEventListener('click', () => ModalManager.openServiceModal());

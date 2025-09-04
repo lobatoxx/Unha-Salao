@@ -123,22 +123,39 @@ export function openAppointmentModal(appointment = null, dateStr = null, timeStr
     DOMElements.appointmentService.innerHTML = '<option value="">Selecione um serviço</option>' + state.services.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
 
     if (appointment) {
-        DOMElements.appointmentModalTitle.textContent = 'Editar Agendamento';
+        DOMElements.appointmentModalTitle.textContent = 'Detalhes do Agendamento';
         DOMElements.appointmentIdToEdit.value = appointment.id;
         DOMElements.appointmentDate.value = appointment.date.toISOString().split('T')[0];
         DOMElements.appointmentTime.value = appointment.date.toTimeString().substring(0, 5);
         DOMElements.appointmentClient.value = appointment.clientId;
         DOMElements.appointmentProfessional.value = appointment.professionalId;
         DOMElements.appointmentService.value = appointment.serviceId;
+        
+        DOMElements.deleteAppointmentBtn.classList.remove('hidden');
+        DOMElements.startAppointmentAction.classList.toggle('hidden', appointment.status !== 'agendado');
+        DOMElements.editAppointmentActions.classList.toggle('hidden', appointment.status === 'agendado' || appointment.status === 'cancelado');
+        
+        const observationDisplay = DOMElements.appointmentObservationDisplay;
+        if (appointment.observation) {
+            DOMElements.appointmentObservationText.textContent = appointment.observation;
+            observationDisplay.classList.remove('hidden');
+        } else {
+            observationDisplay.classList.add('hidden');
+        }
+
     } else {
         DOMElements.appointmentModalTitle.textContent = 'Novo Agendamento';
         DOMElements.appointmentIdToEdit.value = '';
         DOMElements.appointmentDate.value = dateStr || state.selectedDate;
         DOMElements.appointmentTime.value = timeStr || '';
+        DOMElements.deleteAppointmentBtn.classList.add('hidden');
+        DOMElements.startAppointmentAction.classList.add('hidden');
+        DOMElements.editAppointmentActions.classList.add('hidden');
     }
     
     DOMElements.addAppointmentModal.classList.remove('hidden');
 }
+
 
 export function openBlockTimeModal(block = null) {
     DOMElements.blockTimeForm.reset();
@@ -175,8 +192,8 @@ export function openBlockTimeModal(block = null) {
 
 export function openBlockDayModal() {
     if (!DOMElements.blockDayDate || !DOMElements.blockDayProfessional) {
-        console.error("ERRO FATAL: Elementos do modal de bloqueio de dia não foram encontrados no DOM. Verifique os IDs em index.html e domElements.js.");
-        alert("Ocorreu um erro ao abrir o modal de bloqueio. Verifique o console de desenvolvimento.");
+        console.error("ERRO FATAL: Elementos do modal de bloqueio de dia não foram encontrados no DOM.");
+        alert("Ocorreu um erro ao abrir o modal de bloqueio.");
         return;
     }
 
@@ -194,7 +211,6 @@ export function openBlockDayModal() {
     }
     DOMElements.blockDayModal.classList.remove('hidden');
 }
-
 
 export function openClientProfileModal(clientId) {
     const client = state.clients.find(c => c.id === clientId);
@@ -229,6 +245,26 @@ export function openClientProfileModal(clientId) {
     DOMElements.clientProfileModal.classList.remove('hidden');
 }
 
+export function openAnamnesisModal(appointment) {
+    const client = state.clients.find(c => c.id === appointment.clientId);
+    if (!client) {
+        alert('Cliente não encontrado para este agendamento.');
+        return;
+    }
+    DOMElements.anamnesisForm.reset();
+    state.signaturePad.clear();
+    DOMElements.anamnesisAppointmentId.value = appointment.id;
+    DOMElements.anamnesisClientId.value = client.id;
+    DOMElements.anamnesisClientName.textContent = client.name;
+    DOMElements.anamnesisClientPhone.textContent = client.phone;
+    DOMElements.anamnesisModal.classList.remove('hidden');
+}
+
+export function openObservationModal(appointment) {
+    DOMElements.observationForm.reset();
+    DOMElements.observationAppointmentId.value = appointment.id;
+    DOMElements.observationModal.classList.remove('hidden');
+}
 
 export function openWhatsAppMessageModal(client) {
     if (!client) return;
