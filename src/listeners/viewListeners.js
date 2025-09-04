@@ -205,6 +205,7 @@ async function handleAppointmentModalActions(e) {
             try {
                 await FirestoreService.deleteAppointment(appointmentId);
                 ModalManager.hideAllModals();
+                refreshAllViews(); // <-- CORREÇÃO ADICIONADA AQUI
             } catch (err) {
                 console.error("Erro ao excluir agendamento:", err);
                 alert("Não foi possível excluir o agendamento.");
@@ -234,24 +235,32 @@ async function handleBlockModalActions(e) {
 // --- Função de Inicialização ---
 
 export function initializeViewListeners() {
-    document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', handleNavClick));
-    
+    // Navegação Principal
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', handleNavClick);
+    });
+
+    // Controles do Calendário e Financeiro
     DOMElements.agendaPage.addEventListener('click', handleCalendarControls);
     DOMElements.financeiroPage.addEventListener('click', handleCalendarControls);
     document.querySelector('.view-toggle').addEventListener('click', handleCalendarViewToggle);
     DOMElements.calendarDays.addEventListener('click', handleCalendarDayClick);
 
+    // Cliques em Listas (Delegação de Eventos)
     DOMElements.servicesList.addEventListener('click', handleListClick);
     DOMElements.clientsList.addEventListener('click', handleListClick);
     DOMElements.professionalsList.addEventListener('click', handleListClick);
 
+    // Cliques na Agenda
     DOMElements.appointmentsForDay.addEventListener('click', handleAgendaClick);
     DOMElements.dailyViewTimeSlots.addEventListener('click', handleAgendaClick);
-    
+
+    // Cliques nos Modais
     DOMElements.actionChoiceModal.addEventListener('click', handleActionChoice);
     DOMElements.addAppointmentModal.addEventListener('click', handleAppointmentModalActions);
     DOMElements.blockTimeModal.addEventListener('click', handleBlockModalActions);
 
+    // Botões para abrir modais
     DOMElements.openServiceModalBtn.addEventListener('click', () => ModalManager.openServiceModal());
     DOMElements.openClientModalBtn.addEventListener('click', () => ModalManager.openClientModal());
     DOMElements.openProfessionalModalBtn.addEventListener('click', () => ModalManager.openProfessionalModal());
