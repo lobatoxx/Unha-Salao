@@ -39,7 +39,7 @@
     <div id="loginPage" class="hidden w-full max-w-sm mx-auto p-8 min-h-screen flex flex-col justify-center">
         <div class="text-center mb-8">
             <!-- COLE A URL PÚBLICA DO SEU LOGO AQUI -->
-            <img src="https://i.ibb.co/DHKNkbnG/logo-schedule.png" alt="Logo do Schedule" class="mx-auto mb-4 rounded-full w-32 h-32 object-cover">
+            <img src="https://i.ibb.co/wRcm9p8/logo-schedule.png" alt="Logo do Schedule" class="mx-auto mb-4 rounded-full w-32 h-32 object-cover">
             <h1 class="text-3xl font-bold text-gray-700">Schedule</h1>
             <p class="text-gray-500">Gestão Completa</p>
         </div>
@@ -126,7 +126,7 @@
                         <button id="monthViewBtn" class="w-1/2 py-1 text-sm font-semibold rounded-md active">Mês</button>
                         <button id="dayViewBtn" class="w-1/2 py-1 text-sm font-semibold rounded-md">Dia</button>
                     </div>
-                    <button id="openBlockTimeModalBtn" title="Bloquear Dia Inteiro" class="flex-shrink-0 bg-gray-600 text-white w-10 h-10 rounded-lg flex items-center justify-center shadow-lg hover:bg-gray-700 transition"><i class="fas fa-lock"></i></button>
+                    <button id="openBlockDayModalBtn" title="Bloquear Dia Inteiro" class="flex-shrink-0 bg-gray-600 text-white w-10 h-10 rounded-lg flex items-center justify-center shadow-lg hover:bg-gray-700 transition"><i class="fas fa-lock"></i></button>
                 </div>
 
                 <div id="monthlyView">
@@ -484,8 +484,10 @@
                 <div class="space-y-4">
                     <p>Você está bloqueando o dia <strong id="blockDayDate"></strong>.</p>
                     <div id="blockDayProfessionalAdminView">
-                        <label for="blockDayProfessional" class="text-sm font-medium text-gray-700">Selecione o profissional:</label>
-                        <select id="blockDayProfessional" class="w-full px-4 py-2 border rounded-lg" required></select>
+                        <label for="blockDayProfessional" class="text-sm font-medium text-gray-700">Selecione o profissional (ou todos):</label>
+                        <select id="blockDayProfessional" class="w-full px-4 py-2 border rounded-lg" required>
+                           <option value="">Todos os Profissionais</option>
+                        </select>
                     </div>
                     <div id="blockDayProfessionalUserView" class="hidden">
                         <label class="text-sm font-medium text-gray-700">Profissional:</label>

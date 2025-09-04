@@ -193,15 +193,17 @@ export function initializeViewListeners() {
     DOMElements.appointmentsForDay.addEventListener('click', handleAgendaClick);
     DOMElements.dailyViewTimeSlots.addEventListener('click', handleAgendaClick);
     DOMElements.actionChoiceModal.addEventListener('click', handleActionChoice);
-    DOMElements.anamnesisHistoryContainer.addEventListener('click', handleAnamnesisHistoryClick);
+    
+    if(DOMElements.anamnesisHistoryContainer) {
+        DOMElements.anamnesisHistoryContainer.addEventListener('click', handleAnamnesisHistoryClick);
+    }
 
     DOMElements.openServiceModalBtn.addEventListener('click', () => ModalManager.openServiceModal());
     DOMElements.openClientModalBtn.addEventListener('click', () => ModalManager.openClientModal());
     DOMElements.openProfessionalModalBtn.addEventListener('click', () => ModalManager.openProfessionalModal());
-    DOMElements.openBlockTimeModalBtn.addEventListener('click', () => {
-        state.tempSlot = { date: state.selectedDate, time: '' };
-        ModalManager.openBlockTimeModal();
-    });
-    DOMElements.openBlockDayModalBtn.addEventListener('click', ModalManager.openBlockDayModal);
+    
+    if (DOMElements.openBlockDayModalBtn) {
+        DOMElements.openBlockDayModalBtn.addEventListener('click', ModalManager.openBlockDayModal);
+    }
 }
 
