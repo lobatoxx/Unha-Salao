@@ -62,9 +62,18 @@ export function renderServices() {
         const el = document.createElement('div');
         el.className = 'bg-white p-4 rounded-lg shadow-sm border flex justify-between items-center';
         const price = typeof service.price === 'number' ? service.price.toFixed(2) : '0.00';
+
+        // CORREÇÃO: Apenas o dono do salão pode ver os botões de editar e excluir
+        const adminButtons = state.role === 'salonOwner' ? `
+            <div>
+                <button class="edit-service-btn text-blue-500 hover:text-blue-700 mr-2" data-id="${service.id}"><i class="fas fa-pencil-alt"></i></button>
+                <button class="delete-service-btn text-red-500 hover:text-red-700" data-id="${service.id}"><i class="fas fa-trash"></i></button>
+            </div>
+        ` : '';
+
         el.innerHTML = `
             <div><p class="font-semibold text-gray-800">${service.name || ''}</p><p class="text-sm text-gray-500">R$ ${price.replace('.',',')} - ${service.duration || 0} min</p></div>
-            <div><button class="edit-service-btn text-blue-500 hover:text-blue-700 mr-2" data-id="${service.id}"><i class="fas fa-pencil-alt"></i></button><button class="delete-service-btn text-red-500 hover:text-red-700" data-id="${service.id}"><i class="fas fa-trash"></i></button></div>`;
+            ${adminButtons}`;
         DOMElements.servicesList.appendChild(el);
     });
 }
@@ -75,10 +84,19 @@ export function renderProfessionals() {
         const el = document.createElement('div');
         el.className = 'bg-white p-4 rounded-lg shadow-sm border';
         const serviceNames = (prof.serviceIds || []).map(id => state.services.find(s => s.id === id)?.name).filter(name => name).join(', ');
+        
+        // CORREÇÃO: Apenas o dono do salão pode ver os botões de editar e excluir
+        const adminButtons = state.role === 'salonOwner' ? `
+            <div class="flex items-center gap-2">
+                <button class="edit-professional-btn text-blue-500 hover:text-blue-700" data-id="${prof.id}"><i class="fas fa-pencil-alt"></i></button>
+                <button class="delete-professional-btn text-red-500 hover:text-red-700" data-id="${prof.id}"><i class="fas fa-trash"></i></button>
+            </div>
+        ` : '';
+
         el.innerHTML = `
             <div class="flex justify-between items-center">
                 <div><p class="font-semibold text-gray-800">${prof.name}</p><p class="text-sm text-gray-500">Comissão: ${prof.commission}%</p></div>
-                <div class="flex items-center gap-2"><button class="edit-professional-btn text-blue-500 hover:text-blue-700" data-id="${prof.id}"><i class="fas fa-pencil-alt"></i></button><button class="delete-professional-btn text-red-500 hover:text-red-700" data-id="${prof.id}"><i class="fas fa-trash"></i></button></div>
+                ${adminButtons}
             </div>
             <div class="mt-2 pt-2 border-t"><p class="text-xs font-medium">Serviços:</p><p class="text-xs text-gray-500">${serviceNames || 'Nenhum serviço vinculado'}</p></div>`;
         DOMElements.professionalsList.appendChild(el);
@@ -247,13 +265,6 @@ export function renderAppointmentsForDay() {
     }
 }
 
-/**
- * OBSERVACAO IMPORTANTE:
- * A função abaixo `renderDailyView` agora recebe `openActionChoiceModal` como um argumento.
- * Isso se chama "injeção de dependência" e é uma ótima prática. Significa que o nosso "pintor" (renderer)
- * não precisa saber *como* o modal funciona, ele apenas recebe a função para ser chamada quando
- * um slot de horário for clicado. A lógica do que essa função faz ficará em outro lugar.
- */
 export function renderDailyView(openActionChoiceModal) {
     const date = new Date(state.selectedDate + 'T00:00:00');
     DOMElements.dailyViewTitle.textContent = `Agenda para ${date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}`;
@@ -268,7 +279,6 @@ export function renderDailyView(openActionChoiceModal) {
     const SLOT_DURATION_MINUTES = 30;
     const SLOT_HEIGHT_REM = 2.5;
 
-    // Renderiza os slots de horário vazios no fundo
     const backgroundSlots = document.createDocumentFragment();
     for (let h = START_HOUR; h < END_HOUR; h++) {
         for (let m = 0; m < 60; m += SLOT_DURATION_MINUTES) {
@@ -282,14 +292,12 @@ export function renderDailyView(openActionChoiceModal) {
             el.dataset.date = state.selectedDate;
             el.dataset.time = slotTimeStr;
             el.innerHTML = `<div class="text-xs font-bold text-gray-400 w-12">${slotTimeStr}</div>`;
-            // A mágica acontece aqui: o clique chama a função que foi passada como argumento
             el.onclick = () => openActionChoiceModal(el.dataset.date, el.dataset.time);
             backgroundSlots.appendChild(el);
         }
     }
     DOMElements.dailyViewTimeSlots.appendChild(backgroundSlots);
     
-    // Renderiza os agendamentos existentes por cima dos slots
     dayAppointments.forEach(app => {
         const isBlock = app.type === 'block';
         const service = !isBlock ? state.services.find(s => s.id === app.serviceId) : null;
