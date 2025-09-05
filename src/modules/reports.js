@@ -2,7 +2,7 @@
 // Ela recebe o 'state' para poder acessar os dados da aplicação, como a lista de clientes.
 export function initializeReports(state) {
   // Encontra o lugar no HTML onde queremos adicionar o botão
-  const dashboard = document.getElementById('painelPage');
+  const dashboard = document.getElementById('clientesPage');
   if (!dashboard) return; // Se não encontrar o painel, não faz nada
 
   // Cria um novo botão de relatório
