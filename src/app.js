@@ -21,6 +21,8 @@ import {
     arrayUnion,
     getDoc
 } from './firebase.js';
+// NOVA LINHA: Importando nossa nova funcionalidade de relatório
+import { initializeReports } from './modules/reports.js';
 
 let confirmAction = null; // Variável global para a ação de confirmação
 
@@ -709,6 +711,9 @@ function main() {
     const blockDayModal = document.getElementById('blockDayModal');
     const closeBlockDayModalBtn = document.getElementById('closeBlockDayModalBtn');
     const blockDayForm = document.getElementById('blockDayForm');
+
+    // NOVA LINHA: Chamando a inicialização da nossa nova funcionalidade
+    initializeReports(state);
 
     registerButton.addEventListener('click', async () => {
         const email = emailInput.value;
