@@ -9,6 +9,7 @@ export function renderFinancialPage(state) {
     const lucroLiquidoMesEl = document.getElementById('lucroLiquidoMes');
     const detalhesFinanceiroEl = document.getElementById('detalhesFinanceiro');
     const expensesListEl = document.getElementById('expensesList');
+    const suggestedExpensesListEl = document.getElementById('suggestedExpensesList'); // Novo
     const ganhosProfissionalMesEl = document.getElementById('ganhosProfissionalMes');
 
     if (!financeiroCurrentMonthYear) return;
@@ -56,6 +57,33 @@ export function renderFinancialPage(state) {
             });
         }
         
+        // NOVO: Lógica para sugestões de custos fixos
+        suggestedExpensesListEl.innerHTML = '';
+        const recurringSuggestions = state.recurringExpenses.filter(rec => {
+            // Verifica se já não existe uma despesa lançada para este custo fixo neste mês
+            return !expensesInMonth.some(exp => exp.recurringExpenseSourceId === rec.id);
+        });
+
+        if (recurringSuggestions.length === 0) {
+            suggestedExpensesListEl.innerHTML = `<p class="text-center text-gray-500 text-sm">Todos os custos fixos do mês já foram lançados.</p>`;
+        } else {
+            recurringSuggestions.forEach(rec => {
+                const el = document.createElement('div');
+                el.className = 'bg-gray-50 p-3 rounded-lg border flex justify-between items-center';
+                el.innerHTML = `
+                    <div>
+                        <p class="font-semibold text-gray-700">${rec.description}</p>
+                        <p class="text-sm text-gray-500">Valor Padrão: R$ ${rec.defaultValue.toFixed(2).replace('.',',')}</p>
+                    </div>
+                    <button class="launch-recurring-btn bg-green-500 text-white px-3 py-1 text-sm rounded-md font-semibold hover:bg-green-600" data-id="${rec.id}">
+                        Lançar
+                    </button>
+                `;
+                suggestedExpensesListEl.appendChild(el);
+            });
+        }
+
+
         expensesListEl.innerHTML = '';
         if (expensesInMonth.length === 0) {
             expensesListEl.innerHTML = `<p class="text-center text-gray-500 text-sm">Nenhuma despesa lançada para este mês.</p>`;
@@ -83,6 +111,7 @@ export function renderFinancialPage(state) {
                 expensesListEl.appendChild(el);
             });
         }
+
     } else if (state.role === 'professional') {
         const profRevenue = appointmentsInMonth.reduce((total, app) => {
             const service = state.services.find(s => s.id === app.serviceId);

@@ -22,7 +22,7 @@ import {
 } from './firebase.js';
 import { initializeReports } from './modules/reports.js';
 import { renderFinancialPage, initializeFinancialEventListeners } from './modules/financial.js';
-import { initializeExpensesModal, openExpenseModalForEdit } from './modules/expenses.js';
+import { initializeExpensesModal, openExpenseModalForEdit, openExpenseModalForRecurring } from './modules/expenses.js';
 import { initializeRecurringExpenses } from './modules/recurringExpenses.js';
 
 
@@ -610,6 +610,7 @@ function main() {
     const closeBlockDayModalBtn = document.getElementById('closeBlockDayModalBtn');
     const blockDayForm = document.getElementById('blockDayForm');
     const expensesListEl = document.getElementById('expensesList');
+    const suggestedExpensesListEl = document.getElementById('suggestedExpensesList');
 
     const refreshAllViews = () => {
         renderCalendar(calendarDays, currentMonthYear);
@@ -655,6 +656,19 @@ function main() {
                     } catch (err) {
                         console.error("Erro ao atualizar status da despesa:", err);
                     }
+                }
+            }
+        });
+    }
+
+    if (suggestedExpensesListEl) {
+        suggestedExpensesListEl.addEventListener('click', (e) => {
+            const launchBtn = e.target.closest('.launch-recurring-btn');
+            if (launchBtn) {
+                const recurringId = launchBtn.dataset.id;
+                const recurringExpense = state.recurringExpenses.find(rec => rec.id === recurringId);
+                if (recurringExpense) {
+                    openExpenseModalForRecurring(recurringExpense, state.currentDate);
                 }
             }
         });

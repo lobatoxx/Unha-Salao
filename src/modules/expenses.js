@@ -7,6 +7,7 @@ const expenseIdToEdit = document.getElementById('expenseIdToEdit');
 const expenseDescription = document.getElementById('expenseDescription');
 const expenseValue = document.getElementById('expenseValue');
 const expenseDueDate = document.getElementById('expenseDueDate');
+const recurringSourceIdInput = document.getElementById('recurringExpenseSourceId'); // Novo
 
 /**
  * Abre o modal de despesas para edição, preenchendo com os dados existentes.
@@ -16,10 +17,34 @@ export function openExpenseModalForEdit(expense) {
     addExpenseForm.reset();
     expenseModalTitle.textContent = 'Editar Despesa';
     expenseIdToEdit.value = expense.id;
+    recurringSourceIdInput.value = expense.recurringExpenseSourceId || '';
     expenseDescription.value = expense.description;
     expenseValue.value = expense.value;
-    // Formata a data do Firebase para o formato YYYY-MM-DD do input
     expenseDueDate.value = expense.dueDate.toISOString().split('T')[0];
+    addExpenseModal.classList.remove('hidden');
+}
+
+/**
+ * NOVO: Abre o modal de despesas para lançar um custo fixo.
+ * @param {object} recurringExpense - O modelo do custo fixo.
+ * @param {Date} currentDate - A data do mês atual que está sendo visualizado.
+ */
+export function openExpenseModalForRecurring(recurringExpense, currentDate) {
+    addExpenseForm.reset();
+    expenseModalTitle.textContent = 'Lançar Custo Fixo';
+    expenseIdToEdit.value = ''; // É uma criação, não edição
+    recurringSourceIdInput.value = recurringExpense.id; // Guarda a origem
+    
+    expenseDescription.value = recurringExpense.description;
+    expenseValue.value = recurringExpense.defaultValue;
+
+    // Calcula a data de vencimento correta para o mês/ano atual
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const day = recurringExpense.startDay;
+    const dueDate = new Date(year, month, day);
+    expenseDueDate.value = dueDate.toISOString().split('T')[0];
+
     addExpenseModal.classList.remove('hidden');
 }
 
@@ -38,7 +63,8 @@ export function initializeExpensesModal(state, db) {
     openExpenseModalBtn.addEventListener('click', () => {
         addExpenseForm.reset();
         expenseModalTitle.textContent = 'Adicionar Despesa';
-        expenseIdToEdit.value = ''; // Garante que não está em modo de edição
+        expenseIdToEdit.value = '';
+        recurringSourceIdInput.value = '';
         expenseDueDate.value = new Date().toISOString().split('T')[0];
         addExpenseModal.classList.remove('hidden');
     });
@@ -51,10 +77,13 @@ export function initializeExpensesModal(state, db) {
         e.preventDefault();
 
         const id = expenseIdToEdit.value;
+        const recurringSourceId = recurringSourceIdInput.value;
+
         const data = {
             description: expenseDescription.value,
             value: parseFloat(expenseValue.value),
             dueDate: Timestamp.fromDate(new Date(expenseDueDate.value + 'T00:00:00')),
+            recurringExpenseSourceId: recurringSourceId || null,
         };
 
         if (!data.description || !data.value || !data.dueDate) {
@@ -64,14 +93,14 @@ export function initializeExpensesModal(state, db) {
 
         try {
             if (id) {
-                // Modo de Edição: Atualiza o documento existente
+                // Modo de Edição
                 await updateDoc(doc(db, 'expenses', id), data);
             } else {
-                // Modo de Criação: Adiciona um novo documento
+                // Modo de Criação
                 const newData = {
                     ...data,
                     isPaid: false,
-                    type: 'Variável',
+                    type: recurringSourceId ? 'Fixo' : 'Variável',
                     salonId: state.userSalonId,
                     createdAt: Timestamp.now()
                 };
