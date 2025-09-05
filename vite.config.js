@@ -6,7 +6,8 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      // Mudamos de 'auto' para null para controlar o registro manualmente
+      injectRegister: null, 
       manifest: {
         name: 'Schedule - Gestão Completa',
         short_name: 'Schedule',
