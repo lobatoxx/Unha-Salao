@@ -704,7 +704,7 @@ import {
             const closeAnamnesisModalBtn = document.getElementById('closeAnamnesisModalBtn');
             const canvas = document.getElementById('signature-pad');
             const clearSignatureBtn = document.getElementById('clearSignatureBtn');
-            state.signaturePad = new SignaturePad(canvas);
+            state.state.signaturePad = new state.signaturePad(canvas);
 
             const blockDayModal = document.getElementById('blockDayModal');
             const closeBlockDayModalBtn = document.getElementById('closeBlockDayModalBtn');
@@ -1304,7 +1304,7 @@ import {
                 if (!app || !client) return;
 
                 anamnesisForm.reset();
-                signaturePad.clear();
+                state.signaturePad.clear();
                 
                 document.getElementById('anamnesisAppointmentId').value = app.id;
                 document.getElementById('anamnesisClientId').value = client.id;
@@ -1334,12 +1334,12 @@ import {
                 openAnamnesisModal(appId);
             });
 
-            clearSignatureBtn.addEventListener('click', () => signaturePad.clear());
+            clearSignatureBtn.addEventListener('click', () => state.signaturePad.clear());
             closeAnamnesisModalBtn.addEventListener('click', () => anamnesisModal.classList.add('hidden'));
 
             anamnesisForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                if (signaturePad.isEmpty()) {
+                if (state.signaturePad.isEmpty()) {
                     alert('A assinatura do cliente é obrigatória.');
                     return;
                 }
