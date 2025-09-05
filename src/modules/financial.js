@@ -21,8 +21,8 @@ export function renderFinancialPage(state) {
     // --- LÓGICA DE CÁLCULO ---
     const appointmentsInMonth = state.appointments.filter(app => app.status === 'faturado' && app.date && app.date.getFullYear() === year && app.date.getMonth() === month);
     
-    // CORRIGIDO: Adicionada verificação para garantir que 'exp.dueDate' existe antes de usar '.toDate()'
-    const expensesInMonth = state.expenses.filter(exp => exp.dueDate && exp.dueDate.toDate().getFullYear() === year && exp.dueDate.toDate().getMonth() === month);
+    // CORRIGIDO: Removido '.toDate()' pois a data já é um objeto Date do JavaScript
+    const expensesInMonth = state.expenses.filter(exp => exp.dueDate && exp.dueDate.getFullYear() === year && exp.dueDate.getMonth() === month);
 
     // --- RENDERIZAÇÃO PARA O DONO DO SALÃO ---
     if (state.role === 'salonOwner') {
@@ -72,7 +72,10 @@ export function renderFinancialPage(state) {
             expensesInMonth.sort((a,b) => a.dueDate - b.dueDate).forEach(exp => {
                 const el = document.createElement('div');
                 el.className = 'bg-white p-3 rounded-lg shadow-sm border flex justify-between items-center';
-                const dueDate = exp.dueDate.toDate().toLocaleDateString('pt-BR');
+                
+                // CORRIGIDO: Removido '.toDate()' aqui também
+                const dueDate = exp.dueDate.toLocaleDateString('pt-BR');
+                
                 el.innerHTML = `
                     <div>
                         <p class="font-semibold text-gray-800">${exp.description}</p>
