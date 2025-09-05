@@ -20,6 +20,8 @@ export function renderFinancialPage(state) {
 
     // --- LÓGICA DE CÁLCULO ---
     const appointmentsInMonth = state.appointments.filter(app => app.status === 'faturado' && app.date && app.date.getFullYear() === year && app.date.getMonth() === month);
+    
+    // CORRIGIDO: Adicionada verificação para garantir que 'exp.dueDate' existe antes de usar '.toDate()'
     const expensesInMonth = state.expenses.filter(exp => exp.dueDate && exp.dueDate.toDate().getFullYear() === year && exp.dueDate.toDate().getMonth() === month);
 
     // --- RENDERIZAÇÃO PARA O DONO DO SALÃO ---

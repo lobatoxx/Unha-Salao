@@ -495,7 +495,7 @@ function updateUIVisibility() {
         adminFinancialSummary.style.display = 'grid';
         adminFinancialDetails.style.display = 'block';
         professionalFinancialSummary.classList.add('hidden');
-        openExpenseModalBtn.style.display = 'flex';
+        if (openExpenseModalBtn) openExpenseModalBtn.style.display = 'flex';
     } else if (isProfessional) {
         equipeBtn.style.display = 'none';
         servicosBtn.style.display = 'none';
@@ -505,7 +505,7 @@ function updateUIVisibility() {
         adminFinancialSummary.style.display = 'none';
         adminFinancialDetails.style.display = 'none';
         professionalFinancialSummary.classList.remove('hidden');
-        openExpenseModalBtn.style.display = 'none';
+        if (openExpenseModalBtn) openExpenseModalBtn.style.display = 'none';
     } else {
         document.querySelectorAll('.page, footer').forEach(el => el.style.display = 'none');
     }
