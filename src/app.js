@@ -23,6 +23,7 @@ import {
 import { initializeReports } from './modules/reports.js';
 import { renderFinancialPage, initializeFinancialEventListeners } from './modules/financial.js';
 import { initializeExpensesModal, openExpenseModalForEdit } from './modules/expenses.js';
+import { initializeRecurringExpenses } from './modules/recurringExpenses.js';
 
 
 let confirmAction = null; 
@@ -484,6 +485,7 @@ function updateUIVisibility() {
     const adminFinancialDetails = document.getElementById('adminFinancialDetails');
     const professionalFinancialSummary = document.getElementById('professionalFinancialSummary');
     const openExpenseModalBtn = document.getElementById('openExpenseModalBtn');
+    const manageRecurringBtn = document.getElementById('manageRecurringBtn');
 
     if (isOwner) {
         equipeBtn.style.display = 'block';
@@ -495,6 +497,7 @@ function updateUIVisibility() {
         adminFinancialDetails.style.display = 'block';
         professionalFinancialSummary.classList.add('hidden');
         if (openExpenseModalBtn) openExpenseModalBtn.style.display = 'flex';
+        if (manageRecurringBtn) manageRecurringBtn.style.display = 'block';
     } else if (isProfessional) {
         equipeBtn.style.display = 'none';
         servicosBtn.style.display = 'none';
@@ -505,6 +508,7 @@ function updateUIVisibility() {
         adminFinancialDetails.style.display = 'none';
         professionalFinancialSummary.classList.remove('hidden');
         if (openExpenseModalBtn) openExpenseModalBtn.style.display = 'none';
+        if (manageRecurringBtn) manageRecurringBtn.style.display = 'none';
     } else {
         document.querySelectorAll('.page, footer').forEach(el => el.style.display = 'none');
     }
@@ -605,8 +609,6 @@ function main() {
     const blockDayModal = document.getElementById('blockDayModal');
     const closeBlockDayModalBtn = document.getElementById('closeBlockDayModalBtn');
     const blockDayForm = document.getElementById('blockDayForm');
-    
-    // NOVO: Adicionamos a busca pelo elemento da lista de despesas
     const expensesListEl = document.getElementById('expensesList');
 
     const refreshAllViews = () => {
@@ -616,19 +618,19 @@ function main() {
         if (!dailyView.classList.contains('hidden')) {
             renderDailyView(dailyViewTimeSlots, dailyViewTitle, state.selectedDate, openActionChoiceModal);
         }
+        window.dispatchEvent(new Event('stateUpdate'));
     };
     
     initializeReports(state);
     initializeFinancialEventListeners(state, refreshAllViews);
     initializeExpensesModal(state, db);
+    initializeRecurringExpenses(state, db, showConfirmModal);
 
-    // NOVO: Listener de eventos para a lista de despesas
     if (expensesListEl) {
         expensesListEl.addEventListener('click', async (e) => {
             const editBtn = e.target.closest('.edit-expense-btn');
             const deleteBtn = e.target.closest('.delete-expense-btn');
             const statusBtn = e.target.closest('.toggle-status-btn');
-
             if (editBtn) {
                 const expenseId = editBtn.dataset.id;
                 const expenseToEdit = state.expenses.find(exp => exp.id === expenseId);
@@ -636,14 +638,12 @@ function main() {
                     openExpenseModalForEdit(expenseToEdit);
                 }
             }
-
             if (deleteBtn) {
                 const expenseId = deleteBtn.dataset.id;
                 showConfirmModal('Tem certeza que deseja excluir esta despesa?', () => {
                     deleteDoc(doc(db, 'expenses', expenseId)).catch(err => console.error(err));
                 });
             }
-
             if (statusBtn) {
                 const expenseId = statusBtn.dataset.id;
                 const expenseToToggle = state.expenses.find(exp => exp.id === expenseId);
@@ -697,7 +697,6 @@ function main() {
             }
         }
     });
-
     loginButton.addEventListener('click', async () => {
         const email = emailInput.value;
         const password = passwordInput.value;
@@ -705,9 +704,7 @@ function main() {
         try { await signInWithEmailAndPassword(auth, email, password); }
         catch (error) { authError.textContent = "E-mail ou senha inválidos."; }
     });
-
     logoutButton.addEventListener('click', () => signOut(auth));
-
     monthViewBtn.addEventListener('click', () => {
         monthlyView.style.display = 'block';
         dailyView.classList.add('hidden');
@@ -715,7 +712,6 @@ function main() {
         dayViewBtn.classList.remove('active');
         renderCalendar(calendarDays, currentMonthYear);
     });
-
     dayViewBtn.addEventListener('click', () => {
         monthlyView.style.display = 'none';
         dailyView.classList.remove('hidden');
@@ -724,7 +720,6 @@ function main() {
         renderDailyView(dailyViewTimeSlots, dailyViewTitle, state.selectedDate, openActionChoiceModal);
         renderCalendar(calendarDays, currentMonthYear);
     });
-
     calendarDays.addEventListener('click', (e) => {
         const dayEl = e.target.closest('.calendar-day');
         if (dayEl && dayEl.dataset.date) {
@@ -735,7 +730,6 @@ function main() {
             dayViewBtn.click();
         }
     });
-
     prevMonthBtn.addEventListener('click', () => {
         if (!dailyView.classList.contains('hidden')) {
             const currentDate = new Date(state.selectedDate + 'T00:00:00');
@@ -748,7 +742,6 @@ function main() {
             refreshAllViews();
         }
     });
-
     nextMonthBtn.addEventListener('click', () => {
         if (!dailyView.classList.contains('hidden')) {
             const currentDate = new Date(state.selectedDate + 'T00:00:00');
@@ -761,16 +754,13 @@ function main() {
             refreshAllViews();
         }
     });
-
     openServiceModalBtn.addEventListener('click', () => {
         serviceModalTitle.textContent = 'Adicionar Serviço';
         addServiceForm.reset();
         serviceIdToEdit.value = '';
         addServiceModal.classList.remove('hidden');
     });
-
     closeServiceModalBtn.addEventListener('click', () => addServiceModal.classList.add('hidden'));
-
     addServiceForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = serviceIdToEdit.value;
@@ -781,12 +771,18 @@ function main() {
             salonId: state.userSalonId
         };
         try {
-            if (id) { await updateDoc(doc(db, 'services', id), data); }
-            else { await addDoc(collection(db, 'services'), data); }
-            addServiceForm.reset(); addServiceModal.classList.add('hidden');
-        } catch (err) { console.error(err); }
+            if (id) {
+                await updateDoc(doc(db, 'services', id), data);
+            }
+            else {
+                await addDoc(collection(db, 'services'), data);
+            }
+            addServiceForm.reset();
+            addServiceModal.classList.add('hidden');
+        } catch (err) {
+            console.error(err);
+        }
     });
-
     openProfessionalModalBtn.addEventListener('click', () => {
         professionalModalTitle.textContent = 'Adicionar Profissional';
         addProfessionalForm.reset();
@@ -799,9 +795,7 @@ function main() {
         });
         addProfessionalModal.classList.remove('hidden');
     });
-
     closeProfessionalModalBtn.addEventListener('click', () => addProfessionalModal.classList.add('hidden'));
-
     addProfessionalForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = professionalIdToEdit.value;
@@ -813,28 +807,31 @@ function main() {
             serviceIds: Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(cb => cb.value),
             salonId: state.userSalonId
         };
-        if (!data.name || !data.commission || !data.email) { alert('Preencha nome, e-mail e comissão.'); return; }
+        if (!data.name || !data.commission || !data.email) {
+            alert('Preencha nome, e-mail e comissão.');
+            return;
+        }
         try {
             if (id) {
                 const { salonId, email, ...updateData } = data;
                 await updateDoc(doc(db, 'professionals', id), updateData);
-            } else {
+            }
+            else {
                 await addDoc(collection(db, 'professionals'), data);
             }
             addProfessionalForm.reset();
             addProfessionalModal.classList.add('hidden');
-        } catch (err) { console.error(err); }
+        } catch (err) {
+            console.error(err);
+        }
     });
-
     document.getElementById('openClientModalBtn').addEventListener('click', () => {
         clientModalTitle.textContent = 'Adicionar Cliente';
         addClientForm.reset();
         clientIdToEdit.value = '';
         addClientModal.classList.remove('hidden');
     });
-
     closeClientModalBtn.addEventListener('click', () => addClientModal.classList.add('hidden'));
-
     addClientForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = clientIdToEdit.value;
@@ -845,16 +842,24 @@ function main() {
             observations: document.getElementById('clientObservations').value,
             salonId: state.userSalonId
         };
-        if (!data.name || !data.phone) { alert('Nome e telefone são obrigatórios.'); return; }
+        if (!data.name || !data.phone) {
+            alert('Nome e telefone são obrigatórios.');
+            return;
+        }
         try {
-            if (id) { await updateDoc(doc(db, 'clients', id), data); }
-            else { await addDoc(collection(db, 'clients'), data); }
-            addClientForm.reset(); addClientModal.classList.add('hidden');
-        } catch (err) { console.error(err); }
+            if (id) {
+                await updateDoc(doc(db, 'clients', id), data);
+            }
+            else {
+                await addDoc(collection(db, 'clients'), data);
+            }
+            addClientForm.reset();
+            addClientModal.classList.add('hidden');
+        } catch (err) {
+            console.error(err);
+        }
     });
-
     closeClientProfileModalBtn.addEventListener('click', () => clientProfileModal.classList.add('hidden'));
-
     function openAppointmentModal(date, appointmentId = null) {
         addAppointmentForm.reset();
         document.getElementById('appointmentDate').value = date;
@@ -897,9 +902,7 @@ function main() {
         }
         addAppointmentModal.classList.remove('hidden');
     }
-
     closeAppointmentModalBtn.addEventListener('click', () => addAppointmentModal.classList.add('hidden'));
-
     addAppointmentForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = appointmentIdToEdit.value;
@@ -936,19 +939,21 @@ function main() {
             console.error(err);
         }
     });
-
     deleteAppointmentBtn.addEventListener('click', () => {
         const id = appointmentIdToEdit.value;
-        if (!id) return;
+        if (!id)
+            return;
         showConfirmModal('Tem certeza que deseja excluir este agendamento?', () => {
             deleteDoc(doc(db, 'appointments', id))
-                .then(() => { addAppointmentModal.classList.add('hidden'); })
+                .then(() => {
+                addAppointmentModal.classList.add('hidden');
+            })
                 .catch(err => console.error(err));
         });
     });
-
     const updateAppointmentStatus = async (status, id, observation = null) => {
-        if (!id) return;
+        if (!id)
+            return;
         try {
             const dataToUpdate = { status };
             if (observation) {
@@ -957,9 +962,11 @@ function main() {
             await updateDoc(doc(db, 'appointments', id), dataToUpdate);
             addAppointmentModal.classList.add('hidden');
             observationModal.classList.add('hidden');
-        } catch (err) { console.error(err); }
+        }
+        catch (err) {
+            console.error(err);
+        }
     };
-
     function openObservationModal(appointmentId) {
         document.getElementById('observationAppointmentId').value = appointmentId;
         observationForm.reset();
@@ -967,31 +974,24 @@ function main() {
         reminderModal.classList.add('hidden');
         observationModal.classList.remove('hidden');
     }
-
     invoiceAppointmentBtn.addEventListener('click', () => openObservationModal(appointmentIdToEdit.value));
-
     reminderInvoiceBtn.addEventListener('click', (e) => openObservationModal(e.target.dataset.id));
-
     observationForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const id = document.getElementById('observationAppointmentId').value;
         const text = document.getElementById('observationText').value;
         updateAppointmentStatus('faturado', id, text);
     });
-
     invoiceWithoutObservationBtn.addEventListener('click', () => {
         const id = document.getElementById('observationAppointmentId').value;
         updateAppointmentStatus('faturado', id);
     });
-
     cancelObservationBtn.addEventListener('click', () => observationModal.classList.add('hidden'));
-
     cancelAppointmentBtn.addEventListener('click', () => {
         showConfirmModal('Tem certeza que deseja cancelar este atendimento?', () => {
             updateAppointmentStatus('cancelado', appointmentIdToEdit.value);
         });
     });
-
     function openBlockTimeModal(blockId = null) {
         blockTimeForm.reset();
         blockIdToEdit.value = '';
@@ -1028,9 +1028,7 @@ function main() {
         }
         blockTimeModal.classList.remove('hidden');
     }
-
     closeBlockTimeModalBtn.addEventListener('click', () => blockTimeModal.classList.add('hidden'));
-
     blockTimeForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = blockIdToEdit.value;
@@ -1058,24 +1056,31 @@ function main() {
             salonId: state.userSalonId
         };
         try {
-            if (id) { await updateDoc(doc(db, 'appointments', id), data); }
-            else { await addDoc(collection(db, 'appointments'), data); }
+            if (id) {
+                await updateDoc(doc(db, 'appointments', id), data);
+            }
+            else {
+                await addDoc(collection(db, 'appointments'), data);
+            }
             blockTimeForm.reset();
             blockTimeModal.classList.add('hidden');
         }
-        catch (err) { console.error(err); }
+        catch (err) {
+            console.error(err);
+        }
     });
-
     deleteBlockBtn.addEventListener('click', () => {
         const id = blockIdToEdit.value;
-        if (!id) return;
+        if (!id)
+            return;
         showConfirmModal('Tem certeza que deseja excluir este bloqueio?', () => {
             deleteDoc(doc(db, 'appointments', id))
-                .then(() => { blockTimeModal.classList.add('hidden'); })
+                .then(() => {
+                blockTimeModal.classList.add('hidden');
+            })
                 .catch(err => console.error(err));
         });
     });
-
     function openBlockDayModal() {
         document.getElementById('blockDayDate').textContent = new Date(state.selectedDate + 'T00:00:00').toLocaleDateString('pt-BR');
         const adminView = document.getElementById('blockDayProfessionalAdminView');
@@ -1096,11 +1101,8 @@ function main() {
         }
         blockDayModal.classList.remove('hidden');
     }
-
     openBlockTimeModalBtn.addEventListener('click', openBlockDayModal);
-
     closeBlockDayModalBtn.addEventListener('click', () => blockDayModal.classList.add('hidden'));
-
     blockDayForm.addEventListener('submit', (e) => {
         e.preventDefault();
         let professionalId;
@@ -1149,28 +1151,23 @@ function main() {
             }
         });
     });
-
     function openActionChoiceModal(date, time) {
         state.tempSlot = { date, time };
         actionChoiceModal.classList.remove('hidden');
     }
-
     newAppointmentChoiceBtn.addEventListener('click', () => {
         actionChoiceModal.classList.add('hidden');
         openAppointmentModal(state.tempSlot.date);
         document.getElementById('appointmentTime').value = state.tempSlot.time;
     });
-
     blockTimeChoiceBtn.addEventListener('click', () => {
         actionChoiceModal.classList.add('hidden');
         openBlockTimeModal();
         document.getElementById('blockStartTime').value = state.tempSlot.time;
     });
-
     cancelActionChoiceBtn.addEventListener('click', () => {
         actionChoiceModal.classList.add('hidden');
     });
-
     function openWhatsAppMessageModal(clientId) {
         const client = state.clients.find(c => c.id === clientId);
         if (!client) return;
@@ -1189,9 +1186,7 @@ function main() {
         });
         whatsappMessageModal.classList.remove('hidden');
     }
-
     closeWhatsappMessageModalBtn.addEventListener('click', () => whatsappMessageModal.classList.add('hidden'));
-
     whatsappMessagesList.addEventListener('click', (e) => {
         const messageBtn = e.target.closest('button');
         if (!messageBtn || !messageBtn.dataset.message) return;
@@ -1202,7 +1197,6 @@ function main() {
         window.open(url, '_blank');
         whatsappMessageModal.classList.add('hidden');
     });
-
     function showReminderModal(app) {
         const client = state.clients.find(c => c.id === app.clientId);
         reminderText.textContent = `Atendimento de ${client?.name || 'Cliente'} finalizou. Deseja faturar ou reagendar?`;
@@ -1212,16 +1206,13 @@ function main() {
         const remindedApp = state.appointments.find(a => a.id === app.id);
         if (remindedApp) remindedApp.reminderSent = true;
     }
-
     closeReminderModalBtn.addEventListener('click', () => reminderModal.classList.add('hidden'));
-
     reminderRescheduleBtn.addEventListener('click', (e) => {
         const appId = e.target.dataset.id;
         const app = state.appointments.find(a => a.id === appId);
         if (app) openAppointmentModal(app.date.toISOString().split('T')[0], appId);
         reminderModal.classList.add('hidden');
     });
-
     function checkAppointmentsForReminders() {
         if (state.role !== 'professional') return;
         const now = new Date();
@@ -1237,7 +1228,6 @@ function main() {
             }
         }
     }
-
     function openAnamnesisModal(appointmentId) {
         const app = state.appointments.find(a => a.id === appointmentId);
         const client = state.clients.find(c => c.id === app.clientId);
@@ -1265,16 +1255,12 @@ function main() {
         addAppointmentModal.classList.add('hidden');
         anamnesisModal.classList.remove('hidden');
     }
-
     startAppointmentBtn.addEventListener('click', () => {
         const appId = appointmentIdToEdit.value;
         openAnamnesisModal(appId);
     });
-
     clearSignatureBtn.addEventListener('click', () => state.signaturePad.clear());
-
     closeAnamnesisModalBtn.addEventListener('click', () => anamnesisModal.classList.add('hidden'));
-
     anamnesisForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (state.signaturePad.isEmpty()) {
@@ -1317,7 +1303,6 @@ function main() {
             alert("Ocorreu um erro ao salvar a ficha. Tente novamente.");
         }
     });
-
     function openClientProfileModal(clientId) {
         const client = state.clients.find(c => c.id === clientId);
         if (!client) return;
@@ -1368,16 +1353,13 @@ function main() {
         }
         clientProfileModal.classList.remove('hidden');
     }
-
     confirmModalOk.addEventListener('click', () => {
         if (typeof confirmAction === 'function') {
             confirmAction();
         }
         confirmModal.classList.add('hidden');
     });
-
     confirmModalCancel.addEventListener('click', () => confirmModal.classList.add('hidden'));
-
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const pageId = e.currentTarget.dataset.page;
@@ -1393,7 +1375,6 @@ function main() {
             e.currentTarget.querySelector('p').classList.add('font-bold');
         });
     });
-
     onAuthStateChanged(auth, async (user) => {
         if (state.reminderInterval)
             clearInterval(state.reminderInterval);
@@ -1453,6 +1434,7 @@ function main() {
                 if (!document.getElementById('dailyView').classList.contains('hidden')) {
                     renderDailyView(document.getElementById('dailyViewTimeSlots'), document.getElementById('dailyViewTitle'), state.selectedDate, openActionChoiceModal);
                 }
+                window.dispatchEvent(new Event('stateUpdate'));
             };
             const collectionsToListen = {
                 services: "services",
@@ -1475,6 +1457,15 @@ function main() {
                     console.error(`Erro ao ouvir a coleção expenses:`, error);
                 });
                 state.unsubscribes.push(unsubExpenses);
+                
+                const recurringQuery = query(collection(db, 'recurringExpenses'), where("salonId", "==", state.userSalonId));
+                const unsubRecurring = onSnapshot(recurringQuery, (snapshot) => {
+                    state.recurringExpenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderAll();
+                }, error => {
+                    console.error(`Erro ao ouvir a coleção recurringExpenses:`, error);
+                });
+                state.unsubscribes.push(unsubRecurring);
             }
 
             Object.keys(collectionsToListen).forEach(key => {
@@ -1508,6 +1499,7 @@ function main() {
             state.clients = [];
             state.services = [];
             state.expenses = [];
+            state.recurringExpenses = [];
             appContainer.classList.add('hidden');
             loginPage.classList.remove('hidden');
         }
