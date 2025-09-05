@@ -4,6 +4,7 @@ import { state } from '../state.js';
 import * as DOMElements from '../ui/domElements.js';
 import * as FirestoreService from '../services/firestoreService.js';
 import * as ModalManager from '../ui/modalManager.js';
+import { refreshAllViews } from './viewListeners.js'; // <-- IMPORTAÇÃO ADICIONADA
 
 // --- Lógica de Validação (Regras de Negócio) ---
 function hasScheduleConflict({ id, professionalId, date, serviceId, duration: blockDuration }) {
@@ -62,6 +63,7 @@ async function handleServiceSubmit(e) {
             await FirestoreService.addService(data);
         }
         ModalManager.hideAllModals();
+        refreshAllViews(); // <-- ATUALIZAÇÃO ADICIONADA
     } catch (err) {
         console.error("Erro ao salvar serviço:", err);
         alert("Não foi possível salvar o serviço.");
@@ -92,6 +94,7 @@ async function handleProfessionalSubmit(e) {
             await FirestoreService.addProfessional(data);
         }
         ModalManager.hideAllModals();
+        refreshAllViews(); // <-- ATUALIZAÇÃO ADICIONADA
     } catch (err) {
         console.error("Erro ao salvar profissional:", err);
         alert("Não foi possível salvar o profissional.");
@@ -120,6 +123,7 @@ async function handleClientSubmit(e) {
             await FirestoreService.addClient(data);
         }
         ModalManager.hideAllModals();
+        refreshAllViews(); // <-- ATUALIZAÇÃO ADICIONADA
     } catch (err) {
         console.error("Erro ao salvar cliente:", err);
         alert("Não foi possível salvar o cliente.");
@@ -163,6 +167,7 @@ async function handleAppointmentSubmit(e) {
             await FirestoreService.addAppointment(data);
         }
         ModalManager.hideAllModals();
+        refreshAllViews(); // <-- ATUALIZAÇÃO ADICIONADA
     } catch (err) {
         console.error("Erro ao salvar agendamento:", err);
         alert("Não foi possível salvar o agendamento.");
@@ -199,6 +204,7 @@ async function handleAnamnesisSubmit(e) {
         await FirestoreService.updateClientAnamnesis(clientId, updatedHistory);
         await FirestoreService.updateAppointmentStatus(appointmentId, 'concluido');
         ModalManager.hideAllModals();
+        refreshAllViews(); // <-- ATUALIZAÇÃO ADICIONADA
     } catch (err) {
         console.error("Erro ao salvar ficha de anamnese:", err);
         alert("Ocorreu um erro ao salvar a ficha. Tente novamente.");
@@ -253,6 +259,7 @@ async function handleBlockTimeSubmit(e) {
             await FirestoreService.addAppointment(data);
         }
         ModalManager.hideAllModals();
+        refreshAllViews(); // <-- ATUALIZAÇÃO ADICIONADA
     } catch (err) {
         console.error("Erro ao salvar bloqueio:", err);
         alert("Não foi possível salvar o bloqueio.");
@@ -296,6 +303,7 @@ async function handleBlockDaySubmit(e) {
     try {
         await Promise.all(promises);
         ModalManager.hideAllModals();
+        refreshAllViews(); // <-- ATUALIZAÇÃO ADICIONADA
     } catch (err) {
         console.error("Erro ao bloquear o dia:", err);
         alert("Não foi possível bloquear o dia para um ou mais profissionais.");
