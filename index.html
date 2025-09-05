@@ -202,23 +202,6 @@
                 <button data-page="financeiroPage" class="nav-btn text-center text-gray-400"><i class="fas fa-chart-pie text-xl"></i><p class="text-xs">Financeiro</p></button>
             </div>
         </footer>
-
-        <div id="reminderModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
-                <div class="flex items-start gap-3">
-                    <div class="text-pink-500 mt-1 text-xl"><i class="fas fa-clock"></i></div>
-                    <div class="flex-1">
-                        <h4 class="font-bold text-gray-800">Finalizar Atendimento</h4>
-                        <p id="reminderText" class="text-sm text-gray-600 mt-1"></p>
-                        <div class="flex gap-2 mt-4">
-                            <button id="reminderInvoiceBtn" class="w-full bg-green-500 text-white px-3 py-2 text-sm rounded-md font-semibold hover:bg-green-600">Faturar</button>
-                            <button id="reminderRescheduleBtn" class="w-full bg-blue-500 text-white px-3 py-2 text-sm rounded-md font-semibold hover:bg-blue-600">Reagendar</button>
-                        </div>
-                    </div>
-                    <button id="closeReminderModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
-                </div>
-            </div>
-        </div>
     </div>
     
     <div id="clientProfileModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
@@ -551,6 +534,7 @@
             </div>
             <form id="addExpenseForm">
                 <input type="hidden" id="expenseIdToEdit">
+                <input type="hidden" id="recurringExpenseSourceId">
                 <div class="space-y-4">
                     <input type="text" id="expenseDescription" placeholder="Descrição (Ex: Aluguel, Conta de Luz)" class="w-full px-4 py-2 border rounded-lg" required>
                     <input type="number" id="expenseValue" placeholder="Valor (ex: 150.50)" step="0.01" class="w-full px-4 py-2 border rounded-lg" required>
