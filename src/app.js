@@ -1592,4 +1592,4 @@ function main() {
     appointmentsForDay.addEventListener('click', handleAgendaClick);
     dailyViewTimeSlots.addEventListener('click', handleAgendaClick);
 }
-main();
+main(); //funciona com o relatrio de clientes e o financeiro separado
