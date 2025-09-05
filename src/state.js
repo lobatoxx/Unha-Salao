@@ -9,6 +9,7 @@ const state = {
   professionals: [],
   clients: [],
   services: [],
+  expenses: [], // <-- ADICIONE ESTA LINHA
   currentDate: new Date(),
   selectedDate: new Date().toISOString().split('T')[0],
   tempSlot: { date: null, time: null },
