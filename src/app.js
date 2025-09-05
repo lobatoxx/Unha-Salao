@@ -23,7 +23,6 @@ import {
 import { initializeReports } from './modules/reports.js';
 import { renderFinancialPage, initializeFinancialEventListeners } from './modules/financial.js';
 import { initializeExpensesModal, openExpenseModalForEdit } from './modules/expenses.js';
-import { initializeRecurringExpenses } from './modules/recurringExpenses.js';
 
 
 let confirmAction = null; 
@@ -425,7 +424,7 @@ function renderDailyView(dailyViewTimeSlots, dailyViewTitle, dateString, openAct
                 <div>
                     <div class="flex items-center">
                         <p class="font-semibold text-xs text-blue-900 truncate">${client?.name || ''}</p>
-                        <button class="whatsapp-btn text-green-500 ml-2 text-lg flex-shrink-0" data-id="${client?.id}"><i class="fab fa-whatsapp"></i></button>
+                        <button class="whatsapp-btn text-green-500 ml-2 text-xs flex-shrink-0" data-id="${client?.id}"><i class="fab fa-whatsapp"></i></button>
                     </div>
                     <p class="text-xs text-blue-700 truncate">${service?.name || ''}</p>
                     <p class="text-xs text-blue-600 truncate">${professional?.name || ''}</p>
@@ -485,7 +484,6 @@ function updateUIVisibility() {
     const adminFinancialDetails = document.getElementById('adminFinancialDetails');
     const professionalFinancialSummary = document.getElementById('professionalFinancialSummary');
     const openExpenseModalBtn = document.getElementById('openExpenseModalBtn');
-    const manageRecurringBtn = document.getElementById('manageRecurringBtn');
 
     if (isOwner) {
         equipeBtn.style.display = 'block';
@@ -497,7 +495,6 @@ function updateUIVisibility() {
         adminFinancialDetails.style.display = 'block';
         professionalFinancialSummary.classList.add('hidden');
         if (openExpenseModalBtn) openExpenseModalBtn.style.display = 'flex';
-        if (manageRecurringBtn) manageRecurringBtn.style.display = 'block';
     } else if (isProfessional) {
         equipeBtn.style.display = 'none';
         servicosBtn.style.display = 'none';
@@ -508,7 +505,6 @@ function updateUIVisibility() {
         adminFinancialDetails.style.display = 'none';
         professionalFinancialSummary.classList.remove('hidden');
         if (openExpenseModalBtn) openExpenseModalBtn.style.display = 'none';
-        if (manageRecurringBtn) manageRecurringBtn.style.display = 'none';
     } else {
         document.querySelectorAll('.page, footer').forEach(el => el.style.display = 'none');
     }
@@ -609,6 +605,8 @@ function main() {
     const blockDayModal = document.getElementById('blockDayModal');
     const closeBlockDayModalBtn = document.getElementById('closeBlockDayModalBtn');
     const blockDayForm = document.getElementById('blockDayForm');
+    
+    // NOVO: Adicionamos a busca pelo elemento da lista de despesas
     const expensesListEl = document.getElementById('expensesList');
 
     const refreshAllViews = () => {
@@ -618,19 +616,19 @@ function main() {
         if (!dailyView.classList.contains('hidden')) {
             renderDailyView(dailyViewTimeSlots, dailyViewTitle, state.selectedDate, openActionChoiceModal);
         }
-        window.dispatchEvent(new Event('stateUpdate'));
     };
     
     initializeReports(state);
     initializeFinancialEventListeners(state, refreshAllViews);
     initializeExpensesModal(state, db);
-    initializeRecurringExpenses(state, db, showConfirmModal);
 
+    // NOVO: Listener de eventos para a lista de despesas
     if (expensesListEl) {
         expensesListEl.addEventListener('click', async (e) => {
             const editBtn = e.target.closest('.edit-expense-btn');
             const deleteBtn = e.target.closest('.delete-expense-btn');
             const statusBtn = e.target.closest('.toggle-status-btn');
+
             if (editBtn) {
                 const expenseId = editBtn.dataset.id;
                 const expenseToEdit = state.expenses.find(exp => exp.id === expenseId);
@@ -638,12 +636,14 @@ function main() {
                     openExpenseModalForEdit(expenseToEdit);
                 }
             }
+
             if (deleteBtn) {
                 const expenseId = deleteBtn.dataset.id;
                 showConfirmModal('Tem certeza que deseja excluir esta despesa?', () => {
                     deleteDoc(doc(db, 'expenses', expenseId)).catch(err => console.error(err));
                 });
             }
+
             if (statusBtn) {
                 const expenseId = statusBtn.dataset.id;
                 const expenseToToggle = state.expenses.find(exp => exp.id === expenseId);
@@ -1453,7 +1453,6 @@ function main() {
                 if (!document.getElementById('dailyView').classList.contains('hidden')) {
                     renderDailyView(document.getElementById('dailyViewTimeSlots'), document.getElementById('dailyViewTitle'), state.selectedDate, openActionChoiceModal);
                 }
-                window.dispatchEvent(new Event('stateUpdate'));
             };
             const collectionsToListen = {
                 services: "services",
@@ -1476,15 +1475,6 @@ function main() {
                     console.error(`Erro ao ouvir a coleção expenses:`, error);
                 });
                 state.unsubscribes.push(unsubExpenses);
-                
-                const recurringQuery = query(collection(db, 'recurringExpenses'), where("salonId", "==", state.userSalonId));
-                const unsubRecurring = onSnapshot(recurringQuery, (snapshot) => {
-                    state.recurringExpenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    renderAll();
-                }, error => {
-                    console.error(`Erro ao ouvir a coleção recurringExpenses:`, error);
-                });
-                state.unsubscribes.push(unsubRecurring);
             }
 
             Object.keys(collectionsToListen).forEach(key => {
@@ -1518,7 +1508,6 @@ function main() {
             state.clients = [];
             state.services = [];
             state.expenses = [];
-            state.recurringExpenses = [];
             appContainer.classList.add('hidden');
             loginPage.classList.remove('hidden');
         }
