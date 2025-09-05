@@ -7,7 +7,7 @@ import * as ModalManager from '../ui/modalManager.js';
 import * as FirestoreService from '../services/firestoreService.js';
 
 // --- Funções Auxiliares ---
-function refreshAllViews() {
+export function refreshAllViews() { // <-- ADICIONADO 'export'
     Renderer.renderCalendar();
     Renderer.renderAppointmentsForDay();
     Renderer.renderFinanceiro();
@@ -113,17 +113,20 @@ async function handleListClick(e) {
 
     if (target?.matches('.delete-service-btn')) {
         if (await ModalManager.showConfirmModal('Tem certeza que deseja excluir este serviço?')) {
-            FirestoreService.deleteService(id).catch(err => console.error("Erro ao excluir serviço:", err));
+            await FirestoreService.deleteService(id);
+            refreshAllViews();
         }
     }
     if (target?.matches('.delete-client-btn')) {
         if (await ModalManager.showConfirmModal('Tem certeza que deseja excluir este cliente?')) {
-            FirestoreService.deleteClient(id).catch(err => console.error("Erro ao excluir cliente:", err));
+            await FirestoreService.deleteClient(id);
+            refreshAllViews();
         }
     }
     if (target?.matches('.delete-professional-btn')) {
         if (await ModalManager.showConfirmModal('Tem certeza que deseja excluir este profissional?')) {
-            FirestoreService.deleteProfessional(id).catch(err => console.error("Erro ao excluir profissional:", err));
+            await FirestoreService.deleteProfessional(id);
+            refreshAllViews();
         }
     }
 
@@ -176,40 +179,26 @@ async function handleAppointmentModalActions(e) {
     const appointment = state.appointments.find(a => a.id === appointmentId);
     if (!appointment) return;
 
-    // Iniciar Atendimento -> Abre Anamnese
     if (target.id === 'startAppointmentBtn') {
         ModalManager.openAnamnesisModal(appointment);
     }
     
-    // Faturar -> Abre modal de observação
     if (target.id === 'invoiceAppointmentBtn') {
         ModalManager.openObservationModal(appointment);
     }
 
-    // Cancelar Agendamento
     if (target.id === 'cancelAppointmentBtn') {
         if (await ModalManager.showConfirmModal('Tem certeza que deseja cancelar este atendimento?')) {
-            try {
-                await FirestoreService.updateAppointmentStatus(appointmentId, 'cancelado');
-                ModalManager.hideAllModals();
-            } catch (err) {
-                console.error("Erro ao cancelar agendamento:", err);
-                alert("Não foi possível cancelar o agendamento.");
-            }
+            await FirestoreService.updateAppointmentStatus(appointmentId, 'cancelado');
+            ModalManager.hideAllModals();
         }
     }
 
-    // Excluir Agendamento
     if (target.id === 'deleteAppointmentBtn') {
         if (await ModalManager.showConfirmModal('Tem certeza que deseja EXCLUIR permanentemente este agendamento? Esta ação não pode ser desfeita.')) {
-            try {
-                await FirestoreService.deleteAppointment(appointmentId);
-                ModalManager.hideAllModals();
-                refreshAllViews(); // <-- CORREÇÃO ADICIONADA AQUI
-            } catch (err) {
-                console.error("Erro ao excluir agendamento:", err);
-                alert("Não foi possível excluir o agendamento.");
-            }
+            await FirestoreService.deleteAppointment(appointmentId);
+            ModalManager.hideAllModals();
+            refreshAllViews();
         }
     }
 }
@@ -222,45 +211,33 @@ async function handleBlockModalActions(e) {
     if (!blockId) return;
 
     if (await ModalManager.showConfirmModal('Tem certeza que deseja excluir este bloqueio?')) {
-        try {
-            await FirestoreService.deleteBlock(blockId);
-            ModalManager.hideAllModals();
-        } catch (err) {
-            console.error("Erro ao excluir bloqueio:", err);
-            alert("Não foi possível excluir o bloqueio.");
-        }
+        await FirestoreService.deleteBlock(blockId);
+        ModalManager.hideAllModals();
+        refreshAllViews();
     }
 }
 
 // --- Função de Inicialização ---
 
 export function initializeViewListeners() {
-    // Navegação Principal
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.addEventListener('click', handleNavClick);
-    });
-
-    // Controles do Calendário e Financeiro
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', handleNavClick));
+    
     DOMElements.agendaPage.addEventListener('click', handleCalendarControls);
     DOMElements.financeiroPage.addEventListener('click', handleCalendarControls);
     document.querySelector('.view-toggle').addEventListener('click', handleCalendarViewToggle);
     DOMElements.calendarDays.addEventListener('click', handleCalendarDayClick);
 
-    // Cliques em Listas (Delegação de Eventos)
     DOMElements.servicesList.addEventListener('click', handleListClick);
     DOMElements.clientsList.addEventListener('click', handleListClick);
     DOMElements.professionalsList.addEventListener('click', handleListClick);
 
-    // Cliques na Agenda
     DOMElements.appointmentsForDay.addEventListener('click', handleAgendaClick);
     DOMElements.dailyViewTimeSlots.addEventListener('click', handleAgendaClick);
-
-    // Cliques nos Modais
+    
     DOMElements.actionChoiceModal.addEventListener('click', handleActionChoice);
     DOMElements.addAppointmentModal.addEventListener('click', handleAppointmentModalActions);
     DOMElements.blockTimeModal.addEventListener('click', handleBlockModalActions);
 
-    // Botões para abrir modais
     DOMElements.openServiceModalBtn.addEventListener('click', () => ModalManager.openServiceModal());
     DOMElements.openClientModalBtn.addEventListener('click', () => ModalManager.openClientModal());
     DOMElements.openProfessionalModalBtn.addEventListener('click', () => ModalManager.openProfessionalModal());
