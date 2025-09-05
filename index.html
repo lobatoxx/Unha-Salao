@@ -147,7 +147,7 @@
                 </div>
             </div>
 
-            <div id="financeiroPage" class="page relative">
+            <div id="financeiroPage" class="page relative pb-20">
                 <div class="flex justify-between items-center mb-4">
                     <button id="financeiroPrevMonthBtn" class="p-2 rounded-full hover:bg-gray-100"><i class="fas fa-chevron-left"></i></button>
                     <h2 id="financeiroCurrentMonthYear" class="text-lg font-bold text-gray-800"></h2>
@@ -542,10 +542,11 @@
     <div id="addExpenseModal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-40">
         <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-sm p-6">
              <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold">Adicionar Despesa</h3>
+                <h3 id="expenseModalTitle" class="text-lg font-bold">Adicionar Despesa</h3>
                 <button id="closeExpenseModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
             </div>
             <form id="addExpenseForm">
+                <input type="hidden" id="expenseIdToEdit">
                 <div class="space-y-4">
                     <input type="text" id="expenseDescription" placeholder="Descrição (Ex: Aluguel, Conta de Luz)" class="w-full px-4 py-2 border rounded-lg" required>
                     <input type="number" id="expenseValue" placeholder="Valor (ex: 150.50)" step="0.01" class="w-full px-4 py-2 border rounded-lg" required>

@@ -18,15 +18,10 @@ export function renderFinancialPage(state) {
     const month = date.getMonth();
     financeiroCurrentMonthYear.textContent = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
-    // --- LÓGICA DE CÁLCULO ---
     const appointmentsInMonth = state.appointments.filter(app => app.status === 'faturado' && app.date && app.date.getFullYear() === year && app.date.getMonth() === month);
-    
-    // CORRIGIDO: Removido '.toDate()' pois a data já é um objeto Date do JavaScript
     const expensesInMonth = state.expenses.filter(exp => exp.dueDate && exp.dueDate.getFullYear() === year && exp.dueDate.getMonth() === month);
 
-    // --- RENDERIZAÇÃO PARA O DONO DO SALÃO ---
     if (state.role === 'salonOwner') {
-        // 1. Calcula e exibe o resumo (Faturamento, Despesas, Lucro)
         const totalRevenue = appointmentsInMonth.reduce((total, app) => {
             const service = state.services.find(s => s.id === app.serviceId);
             return total + (service?.price || 0);
@@ -39,11 +34,8 @@ export function renderFinancialPage(state) {
         despesasTotalMesEl.textContent = `R$ ${totalExpenses.toFixed(2).replace('.', ',')}`;
         lucroLiquidoMesEl.textContent = `R$ ${netProfit.toFixed(2).replace('.', ',')}`;
 
-        // 2. Renderiza o detalhe do faturamento por profissional
         detalhesFinanceiroEl.innerHTML = '';
-        if (state.professionals.length === 0) {
-            detalhesFinanceiroEl.innerHTML = `<p class="text-center text-gray-500 text-sm">Nenhum profissional cadastrado.</p>`;
-        } else {
+        if (state.professionals.length > 0) {
             state.professionals.forEach(prof => {
                 const profAppointments = appointmentsInMonth.filter(app => app.professionalId === prof.id);
                 const profRevenue = profAppointments.reduce((total, app) => {
@@ -64,7 +56,6 @@ export function renderFinancialPage(state) {
             });
         }
         
-        // 3. Renderiza a lista de despesas
         expensesListEl.innerHTML = '';
         if (expensesInMonth.length === 0) {
             expensesListEl.innerHTML = `<p class="text-center text-gray-500 text-sm">Nenhuma despesa lançada para este mês.</p>`;
@@ -72,24 +63,26 @@ export function renderFinancialPage(state) {
             expensesInMonth.sort((a,b) => a.dueDate - b.dueDate).forEach(exp => {
                 const el = document.createElement('div');
                 el.className = 'bg-white p-3 rounded-lg shadow-sm border flex justify-between items-center';
-                
-                // CORRIGIDO: Removido '.toDate()' aqui também
                 const dueDate = exp.dueDate.toLocaleDateString('pt-BR');
+                const statusClass = exp.isPaid ? 'text-green-500' : 'text-orange-500';
+                const statusText = exp.isPaid ? 'Pago' : 'Pendente';
                 
                 el.innerHTML = `
-                    <div>
+                    <div class="flex-1">
                         <p class="font-semibold text-gray-800">${exp.description}</p>
                         <p class="text-sm text-gray-500">Vencimento: ${dueDate}</p>
+                        <p class="font-bold text-red-600 mt-1">R$ ${exp.value.toFixed(2).replace('.', ',')}</p>
                     </div>
                     <div class="text-right">
-                        <p class="font-bold text-red-600">R$ ${exp.value.toFixed(2).replace('.', ',')}</p>
-                        <p class="text-xs ${exp.isPaid ? 'text-green-500' : 'text-orange-500'}">${exp.isPaid ? 'Pago' : 'Pendente'}</p>
+                        <button class="toggle-status-btn text-xs font-bold p-1 rounded ${statusClass}" data-id="${exp.id}">${statusText}</button>
+                        <div class="mt-2">
+                            <button class="edit-expense-btn text-blue-500 hover:text-blue-700 mr-2" data-id="${exp.id}"><i class="fas fa-pencil-alt"></i></button>
+                            <button class="delete-expense-btn text-red-500 hover:text-red-700" data-id="${exp.id}"><i class="fas fa-trash"></i></button>
+                        </div>
                     </div>`;
                 expensesListEl.appendChild(el);
             });
         }
-
-    // --- RENDERIZAÇÃO PARA O PROFISSIONAL ---
     } else if (state.role === 'professional') {
         const profRevenue = appointmentsInMonth.reduce((total, app) => {
             const service = state.services.find(s => s.id === app.serviceId);
@@ -100,11 +93,6 @@ export function renderFinancialPage(state) {
     }
 }
 
-/**
- * Configura os eventos de clique para os botões de navegação de mês da página financeira.
- * @param {object} state - O objeto de estado global da aplicação.
- * @param {Function} refreshAllViews - A função principal que atualiza todas as telas.
- */
 export function initializeFinancialEventListeners(state, refreshAllViews) {
     const financeiroPrevMonthBtn = document.getElementById('financeiroPrevMonthBtn');
     const financeiroNextMonthBtn = document.getElementById('financeiroNextMonthBtn');

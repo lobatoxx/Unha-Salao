@@ -1,4 +1,3 @@
-// No início de app.js
 import { state } from './state.js';
 import {
     auth,
@@ -23,7 +22,7 @@ import {
 } from './firebase.js';
 import { initializeReports } from './modules/reports.js';
 import { renderFinancialPage, initializeFinancialEventListeners } from './modules/financial.js';
-import { initializeExpensesModal } from './modules/expenses.js';
+import { initializeExpensesModal, openExpenseModalForEdit } from './modules/expenses.js';
 
 
 let confirmAction = null; 
@@ -607,6 +606,9 @@ function main() {
     const closeBlockDayModalBtn = document.getElementById('closeBlockDayModalBtn');
     const blockDayForm = document.getElementById('blockDayForm');
     
+    // NOVO: Adicionamos a busca pelo elemento da lista de despesas
+    const expensesListEl = document.getElementById('expensesList');
+
     const refreshAllViews = () => {
         renderCalendar(calendarDays, currentMonthYear);
         renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, state.selectedDate);
@@ -619,6 +621,44 @@ function main() {
     initializeReports(state);
     initializeFinancialEventListeners(state, refreshAllViews);
     initializeExpensesModal(state, db);
+
+    // NOVO: Listener de eventos para a lista de despesas
+    if (expensesListEl) {
+        expensesListEl.addEventListener('click', async (e) => {
+            const editBtn = e.target.closest('.edit-expense-btn');
+            const deleteBtn = e.target.closest('.delete-expense-btn');
+            const statusBtn = e.target.closest('.toggle-status-btn');
+
+            if (editBtn) {
+                const expenseId = editBtn.dataset.id;
+                const expenseToEdit = state.expenses.find(exp => exp.id === expenseId);
+                if (expenseToEdit) {
+                    openExpenseModalForEdit(expenseToEdit);
+                }
+            }
+
+            if (deleteBtn) {
+                const expenseId = deleteBtn.dataset.id;
+                showConfirmModal('Tem certeza que deseja excluir esta despesa?', () => {
+                    deleteDoc(doc(db, 'expenses', expenseId)).catch(err => console.error(err));
+                });
+            }
+
+            if (statusBtn) {
+                const expenseId = statusBtn.dataset.id;
+                const expenseToToggle = state.expenses.find(exp => exp.id === expenseId);
+                if (expenseToToggle) {
+                    try {
+                        await updateDoc(doc(db, 'expenses', expenseId), {
+                            isPaid: !expenseToToggle.isPaid
+                        });
+                    } catch (err) {
+                        console.error("Erro ao atualizar status da despesa:", err);
+                    }
+                }
+            }
+        });
+    }
 
     registerButton.addEventListener('click', async () => {
         const email = emailInput.value;
@@ -899,20 +939,16 @@ function main() {
 
     deleteAppointmentBtn.addEventListener('click', () => {
         const id = appointmentIdToEdit.value;
-        if (!id)
-            return;
+        if (!id) return;
         showConfirmModal('Tem certeza que deseja excluir este agendamento?', () => {
             deleteDoc(doc(db, 'appointments', id))
-                .then(() => {
-                addAppointmentModal.classList.add('hidden');
-            })
+                .then(() => { addAppointmentModal.classList.add('hidden'); })
                 .catch(err => console.error(err));
         });
     });
 
     const updateAppointmentStatus = async (status, id, observation = null) => {
-        if (!id)
-            return;
+        if (!id) return;
         try {
             const dataToUpdate = { status };
             if (observation) {
@@ -921,10 +957,7 @@ function main() {
             await updateDoc(doc(db, 'appointments', id), dataToUpdate);
             addAppointmentModal.classList.add('hidden');
             observationModal.classList.add('hidden');
-        }
-        catch (err) {
-            console.error(err);
-        }
+        } catch (err) { console.error(err); }
     };
 
     function openObservationModal(appointmentId) {
@@ -1025,29 +1058,20 @@ function main() {
             salonId: state.userSalonId
         };
         try {
-            if (id) {
-                await updateDoc(doc(db, 'appointments', id), data);
-            }
-            else {
-                await addDoc(collection(db, 'appointments'), data);
-            }
+            if (id) { await updateDoc(doc(db, 'appointments', id), data); }
+            else { await addDoc(collection(db, 'appointments'), data); }
             blockTimeForm.reset();
             blockTimeModal.classList.add('hidden');
         }
-        catch (err) {
-            console.error(err);
-        }
+        catch (err) { console.error(err); }
     });
 
     deleteBlockBtn.addEventListener('click', () => {
         const id = blockIdToEdit.value;
-        if (!id)
-            return;
+        if (!id) return;
         showConfirmModal('Tem certeza que deseja excluir este bloqueio?', () => {
             deleteDoc(doc(db, 'appointments', id))
-                .then(() => {
-                blockTimeModal.classList.add('hidden');
-            })
+                .then(() => { blockTimeModal.classList.add('hidden'); })
                 .catch(err => console.error(err));
         });
     });
@@ -1149,8 +1173,7 @@ function main() {
 
     function openWhatsAppMessageModal(clientId) {
         const client = state.clients.find(c => c.id === clientId);
-        if (!client)
-            return;
+        if (!client) return;
         state.tempClient = client;
         whatsappMessagesList.innerHTML = '';
         const professionalName = state.role === 'professional' ? state.professionalProfile.name : "Nós do Salão";
@@ -1171,8 +1194,7 @@ function main() {
 
     whatsappMessagesList.addEventListener('click', (e) => {
         const messageBtn = e.target.closest('button');
-        if (!messageBtn || !messageBtn.dataset.message)
-            return;
+        if (!messageBtn || !messageBtn.dataset.message) return;
         const message = messageBtn.dataset.message;
         const phone = state.tempClient.phone.replace(/\D/g, '');
         const encodedMessage = encodeURIComponent(message);
@@ -1188,8 +1210,7 @@ function main() {
         reminderRescheduleBtn.dataset.id = app.id;
         reminderModal.classList.remove('hidden');
         const remindedApp = state.appointments.find(a => a.id === app.id);
-        if (remindedApp)
-            remindedApp.reminderSent = true;
+        if (remindedApp) remindedApp.reminderSent = true;
     }
 
     closeReminderModalBtn.addEventListener('click', () => reminderModal.classList.add('hidden'));
@@ -1197,21 +1218,17 @@ function main() {
     reminderRescheduleBtn.addEventListener('click', (e) => {
         const appId = e.target.dataset.id;
         const app = state.appointments.find(a => a.id === appId);
-        if (app)
-            openAppointmentModal(app.date.toISOString().split('T')[0], appId);
+        if (app) openAppointmentModal(app.date.toISOString().split('T')[0], appId);
         reminderModal.classList.add('hidden');
     });
 
     function checkAppointmentsForReminders() {
-        if (state.role !== 'professional')
-            return;
+        if (state.role !== 'professional') return;
         const now = new Date();
         for (const app of state.appointments) {
-            if (app.status !== 'agendado' || app.type !== 'booking' || app.reminderSent)
-                continue;
+            if (app.status !== 'agendado' || app.type !== 'booking' || app.reminderSent) continue;
             const service = state.services.find(s => s.id === app.serviceId);
-            if (!service)
-                continue;
+            if (!service) continue;
             const endTime = new Date(app.date.getTime() + service.duration * 60000);
             const reminderTime = new Date(endTime.getTime() + 10 * 60000);
             if (now > reminderTime) {
@@ -1224,8 +1241,7 @@ function main() {
     function openAnamnesisModal(appointmentId) {
         const app = state.appointments.find(a => a.id === appointmentId);
         const client = state.clients.find(c => c.id === app.clientId);
-        if (!app || !client)
-            return;
+        if (!app || !client) return;
         anamnesisForm.reset();
         state.signaturePad.clear();
         document.getElementById('anamnesisAppointmentId').value = app.id;
@@ -1242,8 +1258,7 @@ function main() {
                 }
                 else {
                     const textInput = anamnesisForm.querySelector(`[name="${key}"]`);
-                    if (textInput)
-                        textInput.value = value;
+                    if (textInput) textInput.value = value;
                 }
             });
         }
@@ -1305,8 +1320,7 @@ function main() {
 
     function openClientProfileModal(clientId) {
         const client = state.clients.find(c => c.id === clientId);
-        if (!client)
-            return;
+        if (!client) return;
         document.getElementById('profileClientName').textContent = client.name;
         document.getElementById('profileClientPhone').textContent = client.phone;
         document.getElementById('profileClientAddress').textContent = client.address || 'Não informado';
@@ -1447,7 +1461,6 @@ function main() {
                 appointments: "appointments",
             };
             
-            // CORRIGIDO: O "ouvinte" de despesas só é ativado para o dono do salão
             if (state.role === 'salonOwner') {
                 const expensesQuery = query(collection(db, 'expenses'), where("salonId", "==", state.userSalonId));
                 const unsubExpenses = onSnapshot(expensesQuery, (snapshot) => {
