@@ -21,8 +21,9 @@ import {
     arrayUnion,
     getDoc
 } from './firebase.js';
-// NOVA LINHA: Importando nossa nova funcionalidade de relatório
 import { initializeReports } from './modules/reports.js';
+// NOVO: Importando as funções do nosso módulo financeiro
+import { renderFinancialPage, initializeFinancialEventListeners } from './modules/financial.js';
 
 let confirmAction = null; // Variável global para a ação de confirmação
 
@@ -48,9 +49,7 @@ async function exportAnamnesisToPDF(client, record) {
     const doc = new jsPDF();
 
     try {
-        // Verifica se existe uma URL de logo no estado do salão
         if (state.salonInfo && state.salonInfo.logoUrl) {
-            // Função auxiliar para converter a URL da imagem em formato de dados (Base64)
             const toDataURL = url => fetch(url)
                 .then(response => {
                     if (!response.ok) {
@@ -64,19 +63,14 @@ async function exportAnamnesisToPDF(client, record) {
                     reader.onerror = reject;
                     reader.readAsDataURL(blob);
                 }));
-
-            // Converte a URL para o formato de dados
             const logoDataUrl = await toDataURL(state.salonInfo.logoUrl);
-
-            // Adiciona a imagem ao PDF com largura fixa (40) e altura automática (0) para manter a proporção
             doc.addImage(logoDataUrl, 'PNG', 15, 10, 40, 0);
         } else {
-            // Texto alternativo se o salão não tiver logoUrl cadastrado
             doc.text("Logo do Salão", 15, 20);
         }
     } catch (e) {
         console.error("Erro ao carregar ou adicionar o logo da URL:", e);
-        doc.text("Logo não carregado", 15, 20); // Texto alternativo em caso de erro
+        doc.text("Logo não carregado", 15, 20);
     }
 
     doc.setFontSize(18);
@@ -86,24 +80,18 @@ async function exportAnamnesisToPDF(client, record) {
     doc.setFontSize(11);
     doc.setFont("helvetica", "normal");
     doc.text(`Data: ${record.date.toDate().toLocaleDateString('pt-BR')}`, 15, 55);
-
     doc.line(15, 60, 195, 60);
-
     doc.setFont("helvetica", "bold");
     doc.text('Dados do Cliente', 15, 68);
     doc.setFont("helvetica", "normal");
     doc.text(`Nome: ${client.name}`, 15, 75);
     doc.text(`Telefone: ${client.phone}`, 15, 82);
-
     doc.line(15, 90, 195, 90);
-
     doc.setFont("helvetica", "bold");
     doc.text('Questionário', 15, 98);
     doc.setFont("helvetica", "normal");
-
     let yPosition = 105;
     const answers = record.answers;
-
     const addPdfLine = (label, value) => {
         if (yPosition > 260) {
             doc.addPage();
@@ -113,32 +101,26 @@ async function exportAnamnesisToPDF(client, record) {
         doc.text(splitText, 15, yPosition);
         yPosition += (splitText.length * 5) + 3;
     };
-
     const formatYesNo = (value) => (value || 'nao').replace('nao', 'Não').replace('sim', 'Sim');
-
     addPdfLine("1. Possui alergia a esmaltes, removedores ou outros cosméticos?", answers.alergia === 'sim' ? `Sim - Qual? ${answers.alergia_qual || 'Não especificado'}` : 'Não');
     addPdfLine("2. Possui doenças de pele nas mãos ou unhas (micose, psoríase, etc.)?", answers.doenca_pele === 'sim' ? `Sim - Quais? ${answers.doenca_pele_qual || 'Não especificado'}` : 'Não');
     addPdfLine("3. Faz uso de anticoagulantes ou possui problemas de coagulação?", formatYesNo(answers.coagulacao));
     addPdfLine("4. Possui diabetes?", formatYesNo(answers.diabetes));
     addPdfLine("5. Já teve infecção nas unhas após procedimento estético?", formatYesNo(answers.infeccao));
     addPdfLine("6. Está gestante?", formatYesNo(answers.gestante));
-
     yPosition += 5;
     doc.line(15, yPosition, 195, yPosition);
     yPosition += 8;
     doc.setFont("helvetica", "bold");
     doc.text('Assinatura do Cliente:', 15, yPosition);
     yPosition += 5;
-
     try {
         doc.addImage(record.signature, 'PNG', 15, yPosition, 80, 25);
     } catch (e) {
         console.error("Erro ao adicionar a assinatura", e);
         doc.text("Assinatura inválida", 15, yPosition + 10);
     }
-
     const fileName = `Anamnese_${client.name.replace(/ /g, '_')}_${record.date.toDate().toLocaleDateString('pt-BR')}.pdf`;
-
     if (navigator.share) {
         const pdfBlob = doc.output('blob');
         const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
@@ -158,7 +140,6 @@ async function exportAnamnesisToPDF(client, record) {
 
 function hasScheduleConflict(conflictDetails) {
     const { id: appointmentId, professionalId, date, serviceId, duration: blockDuration } = conflictDetails;
-
     let duration = 0;
     if (serviceId) {
         const service = state.services.find(s => s.id === serviceId);
@@ -167,14 +148,11 @@ function hasScheduleConflict(conflictDetails) {
     } else {
         duration = blockDuration;
     }
-
     const newStartTime = date.getTime();
     const newEndTime = newStartTime + (duration * 60000);
-
     for (const existingApp of state.appointments) {
         if (existingApp.professionalId !== professionalId) continue;
         if (appointmentId && existingApp.id === appointmentId) continue;
-
         let existingDuration = 0;
         if (existingApp.type === 'block') {
             existingDuration = existingApp.duration;
@@ -183,10 +161,8 @@ function hasScheduleConflict(conflictDetails) {
             if (!existingService) continue;
             existingDuration = existingService.duration;
         }
-
         const existingStartTime = existingApp.date.getTime();
         const existingEndTime = existingStartTime + (existingDuration * 60000);
-
         if (newStartTime < existingEndTime && existingStartTime < newEndTime) {
             return true;
         }
@@ -197,7 +173,6 @@ function hasScheduleConflict(conflictDetails) {
 function updateSalonHeader() {
     const salonLogoEl = document.getElementById('salonLogo');
     const salonTitleEl = document.getElementById('salonTitle');
-
     if (state.salonInfo && state.salonInfo.logoUrl) {
         salonLogoEl.src = state.salonInfo.logoUrl;
         salonLogoEl.classList.remove('hidden');
@@ -207,7 +182,6 @@ function updateSalonHeader() {
         salonTitleEl.textContent = state.salonInfo.name;
         salonTitleEl.classList.remove('hidden');
     } else {
-        // Fallback
         salonLogoEl.classList.add('hidden');
         salonTitleEl.textContent = 'Painel';
         salonTitleEl.classList.remove('hidden');
@@ -255,7 +229,6 @@ function renderClients(clientsList) {
     state.clients.forEach(client => {
         const el = document.createElement('div');
         el.className = 'bg-white p-4 rounded-lg shadow-sm border flex justify-between items-center';
-
         let adminButtons = '';
         if (state.role === 'salonOwner') {
             adminButtons = `
@@ -263,7 +236,6 @@ function renderClients(clientsList) {
                 <button class="delete-client-btn text-red-500 hover:text-red-700" data-id="${client.id}"><i class="fas fa-trash"></i></button>
             `;
         }
-
         el.innerHTML = `
             <div class="flex-1 cursor-pointer client-profile-btn" data-id="${client.id}">
                 <p class="font-semibold text-gray-800">${client.name}</p>
@@ -295,7 +267,6 @@ function renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, dateStr
             const el = document.createElement('div');
             el.className = 'bg-white p-3 rounded-lg shadow-sm border cursor-pointer hover:bg-gray-50';
             el.dataset.id = app.id;
-
             let statusIcon = '';
             if (app.status === 'faturado') {
                 statusIcon = `<i class="fas fa-dollar-sign text-green-500 text-xs ml-2"></i>`;
@@ -303,7 +274,6 @@ function renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, dateStr
                 statusIcon = `<i class="fas fa-ban text-red-500 text-xs ml-2"></i>`;
                 el.classList.add('opacity-50');
             }
-
             if (app.type === 'block') {
                 const startTimeStr = app.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                 const endTime = new Date(app.date.getTime() + app.duration * 60000);
@@ -347,7 +317,6 @@ function renderCalendar(calendarDays, currentMonthYear) {
     const date = state.currentDate;
     const year = date.getFullYear();
     const month = date.getMonth();
-
     const dailyView = document.getElementById('dailyView');
     if (dailyView && !dailyView.classList.contains('hidden')) {
         const selectedDateObj = new Date(state.selectedDate + 'T00:00:00');
@@ -355,7 +324,6 @@ function renderCalendar(calendarDays, currentMonthYear) {
     } else {
         currentMonthYear.textContent = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
     }
-
     const firstDayOfMonth = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     for (let i = 0; i < firstDayOfMonth; i++) { calendarDays.innerHTML += `<div></div>`; }
@@ -380,23 +348,19 @@ function renderDailyView(dailyViewTimeSlots, dailyViewTitle, dateString, openAct
     const date = new Date(dateString + 'T00:00:00');
     dailyViewTitle.textContent = `Agenda para ${date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}`;
     dailyViewTimeSlots.innerHTML = '';
-
     const dayAppointments = state.appointments
         .filter(app => app.date && app.date.toISOString().split('T')[0] === dateString)
         .sort((a, b) => a.date - b.date);
-
     const START_HOUR = 8;
     const END_HOUR = 19;
     const SLOT_DURATION_MINUTES = 30;
     const SLOT_HEIGHT_REM = 2.5;
-
     const backgroundSlots = document.createDocumentFragment();
     for (let h = START_HOUR; h < END_HOUR; h++) {
         for (let m = 0; m < 60; m += SLOT_DURATION_MINUTES) {
             const slotTime = new Date(date);
             slotTime.setHours(h, m, 0, 0);
             const slotTimeStr = slotTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
             const el = document.createElement('div');
             el.className = 'flex items-start p-2 border-t border-gray-100 hover:bg-gray-50 cursor-pointer';
             el.style.height = `${SLOT_HEIGHT_REM}rem`;
@@ -408,18 +372,15 @@ function renderDailyView(dailyViewTimeSlots, dailyViewTitle, dateString, openAct
         }
     }
     dailyViewTimeSlots.appendChild(backgroundSlots);
-
     dayAppointments.forEach(app => {
         const isBlock = app.type === 'block';
         const service = !isBlock ? state.services.find(s => s.id === app.serviceId) : null;
         const client = !isBlock ? state.clients.find(c => c.id === app.clientId) : null;
         const professional = state.professionals.find(p => p.id === app.professionalId);
         const duration = isBlock ? app.duration : (service?.duration || SLOT_DURATION_MINUTES);
-
         const startMinutes = (app.date.getHours() * 60 + app.date.getMinutes()) - (START_HOUR * 60);
         const topPosition = (startMinutes / SLOT_DURATION_MINUTES) * SLOT_HEIGHT_REM;
         const height = (duration / SLOT_DURATION_MINUTES) * SLOT_HEIGHT_REM;
-
         const appEndTime = new Date(app.date.getTime() + duration * 60000);
         const overlappingApps = dayAppointments.filter(otherApp => {
             const otherIsBlock = otherApp.type === 'block';
@@ -428,13 +389,10 @@ function renderDailyView(dailyViewTimeSlots, dailyViewTitle, dateString, openAct
             const otherAppEndTime = new Date(otherApp.date.getTime() + otherDuration * 60000);
             return app.date < otherAppEndTime && otherApp.date < appEndTime;
         });
-
         const numColumns = overlappingApps.length;
         const columnIndex = overlappingApps.findIndex(a => a.id === app.id);
-
         const width = 100 / numColumns;
         const left = columnIndex * width;
-
         const el = document.createElement('div');
         let bgColor = isBlock ? 'bg-gray-200' : 'bg-blue-100';
         let borderColor = isBlock ? 'border-gray-500' : 'border-blue-500';
@@ -445,7 +403,6 @@ function renderDailyView(dailyViewTimeSlots, dailyViewTitle, dateString, openAct
             hoverBgColor = 'hover:bg-gray-200';
             el.classList.add('opacity-70');
         }
-
         el.className = `absolute flex flex-col p-2 border-l-4 ${borderColor} ${bgColor} ${hoverBgColor} rounded-r-lg overflow-hidden cursor-pointer`;
         el.style.top = `${topPosition}rem`;
         el.style.height = `${height}rem`;
@@ -453,14 +410,12 @@ function renderDailyView(dailyViewTimeSlots, dailyViewTitle, dateString, openAct
         el.style.width = `calc(${width}% - 0.2rem)`;
         el.style.marginRight = '0.2rem';
         el.dataset.id = app.id;
-
         let statusIcon = '';
         if (app.status === 'faturado') {
             statusIcon = `<i class="fas fa-dollar-sign text-green-600 text-xs absolute top-1 right-1"></i>`;
         } else if (app.status === 'cancelado') {
             statusIcon = `<i class="fas fa-ban text-red-600 text-xs absolute top-1 right-1"></i>`;
         }
-
         if (isBlock) {
             el.innerHTML = `
                 <div class="pointer-events-none flex items-center gap-2">
@@ -484,7 +439,6 @@ function renderDailyView(dailyViewTimeSlots, dailyViewTitle, dateString, openAct
                 ${statusIcon}
             `;
         }
-
         dailyViewTimeSlots.appendChild(el);
     });
 }
@@ -495,13 +449,11 @@ function renderDashboard(agendamentosHojeEl, faturamentoHojeEl, totalClientesEl,
     const todayStr = today.toISOString().split('T')[0];
     const agendamentosDeHoje = state.appointments.filter(app => app.type === 'booking' && app.status !== 'cancelado' && app.date && app.date.toISOString().split('T')[0] === todayStr);
     const faturadoHoje = state.appointments.filter(app => app.status === 'faturado' && app.date && app.date.toISOString().split('T')[0] === todayStr);
-
     agendamentosHojeEl.textContent = agendamentosDeHoje.length;
     const faturamentoDeHoje = faturadoHoje.reduce((total, app) => {
         const service = state.services.find(s => s.id === app.serviceId);
         return total + (service?.price || 0);
     }, 0);
-
     faturamentoHojeEl.textContent = `R$ ${faturamentoDeHoje.toFixed(2).replace('.', ',')}`;
     if (state.role === 'salonOwner') {
         totalClientesEl.textContent = state.clients.length;
@@ -526,57 +478,10 @@ function renderDashboard(agendamentosHojeEl, faturamentoHojeEl, totalClientesEl,
     }
 }
 
-function renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl, ganhosProfissionalMesEl) {
-    const date = state.currentDate;
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    financeiroCurrentMonthYear.textContent = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-
-    const appointmentsInMonth = state.appointments.filter(app => {
-        return app.status === 'faturado' && app.date && app.date.getFullYear() === year && app.date.getMonth() === month;
-    });
-
-    if (state.role === 'salonOwner') {
-        let totalMonthRevenue = 0;
-        detalhesFinanceiroEl.innerHTML = '';
-        if (state.professionals.length === 0) {
-            detalhesFinanceiroEl.innerHTML = `<p class="text-center text-gray-500 text-sm">Nenhum profissional cadastrado.</p>`;
-        }
-        state.professionals.forEach(prof => {
-            const profAppointments = appointmentsInMonth.filter(app => app.professionalId === prof.id);
-            const profRevenue = profAppointments.reduce((total, app) => {
-                const service = state.services.find(s => s.id === app.serviceId);
-                return total + (service?.price || 0);
-            }, 0);
-            totalMonthRevenue += profRevenue;
-            const commissionValue = profRevenue * (prof.commission / 100);
-            const el = document.createElement('div');
-            el.className = 'bg-white p-4 rounded-lg shadow-sm border';
-            el.innerHTML = `
-                <p class="font-bold text-gray-800">${prof.name}</p>
-                <div class="mt-2 text-sm space-y-1">
-                    <div class="flex justify-between"><span>Faturamento:</span> <span class="font-semibold">R$ ${profRevenue.toFixed(2).replace('.', ',')}</span></div>
-                    <div class="flex justify-between text-red-600"><span>Comissão (${prof.commission}%):</span> <span class="font-semibold">- R$ ${commissionValue.toFixed(2).replace('.', ',')}</span></div>
-                    <div class="flex justify-between border-t pt-1 mt-1"><span>Líquido:</span> <span class="font-bold text-green-600">R$ ${(profRevenue - commissionValue).toFixed(2).replace('.', ',')}</span></div>
-                </div>`;
-            detalhesFinanceiroEl.appendChild(el);
-        });
-        faturamentoTotalMesEl.textContent = `R$ ${totalMonthRevenue.toFixed(2).replace('.', ',')}`;
-    } else if (state.role === 'professional') {
-        const profRevenue = appointmentsInMonth.reduce((total, app) => {
-            const service = state.services.find(s => s.id === app.serviceId);
-            return total + (service?.price || 0);
-        }, 0);
-        const commissionValue = profRevenue * (state.professionalProfile.commission / 100);
-        ganhosProfissionalMesEl.textContent = `R$ ${commissionValue.toFixed(2).replace('.', ',')}`;
-    }
-}
-
 function updateUIVisibility() {
     const role = state.role;
     const isOwner = role === 'salonOwner';
     const isProfessional = role === 'professional';
-
     const equipeBtn = document.querySelector('button[data-page="equipePage"]');
     const servicosBtn = document.querySelector('button[data-page="servicosPage"]');
     const openClientModalBtn = document.getElementById('openClientModalBtn');
@@ -585,7 +490,6 @@ function updateUIVisibility() {
     const adminFinancialSummary = document.getElementById('adminFinancialSummary');
     const adminFinancialDetails = document.getElementById('adminFinancialDetails');
     const professionalFinancialSummary = document.getElementById('professionalFinancialSummary');
-
     if (isOwner) {
         equipeBtn.style.display = 'block';
         servicosBtn.style.display = 'block';
@@ -687,12 +591,6 @@ function main() {
     const totalClientesEl = document.getElementById('totalClientes');
     const totalServicosEl = document.getElementById('totalServicos');
     const proximosAgendamentosEl = document.getElementById('proximosAgendamentos');
-    const financeiroPrevMonthBtn = document.getElementById('financeiroPrevMonthBtn');
-    const financeiroNextMonthBtn = document.getElementById('financeiroNextMonthBtn');
-    const financeiroCurrentMonthYear = document.getElementById('financeiroCurrentMonthYear');
-    const faturamentoTotalMesEl = document.getElementById('faturamentoTotalMes');
-    const detalhesFinanceiroEl = document.getElementById('detalhesFinanceiro');
-    const ganhosProfissionalMesEl = document.getElementById('ganhosProfissionalMes');
     const whatsappMessageModal = document.getElementById('whatsappMessageModal');
     const whatsappMessagesList = document.getElementById('whatsappMessagesList');
     const closeWhatsappMessageModalBtn = document.getElementById('closeWhatsappMessageModalBtn');
@@ -707,48 +605,37 @@ function main() {
     const canvas = document.getElementById('signature-pad');
     const clearSignatureBtn = document.getElementById('clearSignatureBtn');
     state.signaturePad = new SignaturePad(canvas);
-
     const blockDayModal = document.getElementById('blockDayModal');
     const closeBlockDayModalBtn = document.getElementById('closeBlockDayModalBtn');
     const blockDayForm = document.getElementById('blockDayForm');
-
-    // NOVA LINHA: Chamando a inicialização da nossa nova funcionalidade
     initializeReports(state);
-
+    initializeFinancialEventListeners(state, refreshAllViews);
     registerButton.addEventListener('click', async () => {
         const email = emailInput.value;
         const password = passwordInput.value;
         authError.textContent = '';
-
         if (!email || !password) {
             authError.textContent = "Preencha e-mail e senha.";
             return;
         }
-
         try {
             const q = query(collection(db, 'professionals'), where("email", "==", email));
             const professionalSnapshot = await getDocs(q);
-
             if (professionalSnapshot.empty) {
                 authError.textContent = "E-mail não autorizado. Fale com o administrador do salão.";
                 return;
             }
-
             const professionalDoc = professionalSnapshot.docs[0];
-
             if (professionalDoc.data().userId) {
                 authError.textContent = "Este profissional já possui uma conta registrada. Tente fazer login.";
                 return;
             }
-
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
-
             const professionalRef = doc(db, 'professionals', professionalDoc.id);
             await updateDoc(professionalRef, {
                 userId: user.uid
             });
-
         } catch (error) {
             if (error.code === 'auth/email-already-in-use') {
                 authError.textContent = "Este e-mail já está em uso. Tente fazer login.";
@@ -760,25 +647,26 @@ function main() {
             }
         }
     });
-
     loginButton.addEventListener('click', async () => {
         const email = emailInput.value;
         const password = passwordInput.value;
         authError.textContent = '';
-        try { await signInWithEmailAndPassword(auth, email, password); }
-        catch (error) { authError.textContent = "E-mail ou senha inválidos."; }
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+        }
+        catch (error) {
+            authError.textContent = "E-mail ou senha inválidos.";
+        }
     });
     logoutButton.addEventListener('click', () => signOut(auth));
-
     const refreshAllViews = () => {
         renderCalendar(calendarDays, currentMonthYear);
         renderAppointmentsForDay(appointmentsForDay, appointmentsTitle, state.selectedDate);
-        renderFinanceiro(financeiroCurrentMonthYear, detalhesFinanceiroEl, faturamentoTotalMesEl, ganhosProfissionalMesEl);
+        renderFinancialPage(state);
         if (!dailyView.classList.contains('hidden')) {
             renderDailyView(dailyViewTimeSlots, dailyViewTitle, state.selectedDate, openActionChoiceModal);
         }
     };
-
     monthViewBtn.addEventListener('click', () => {
         monthlyView.style.display = 'block';
         dailyView.classList.add('hidden');
@@ -794,7 +682,6 @@ function main() {
         renderDailyView(dailyViewTimeSlots, dailyViewTitle, state.selectedDate, openActionChoiceModal);
         renderCalendar(calendarDays, currentMonthYear);
     });
-
     calendarDays.addEventListener('click', (e) => {
         const dayEl = e.target.closest('.calendar-day');
         if (dayEl && dayEl.dataset.date) {
@@ -805,7 +692,6 @@ function main() {
             dayViewBtn.click();
         }
     });
-
     prevMonthBtn.addEventListener('click', () => {
         if (!dailyView.classList.contains('hidden')) {
             const currentDate = new Date(state.selectedDate + 'T00:00:00');
@@ -818,7 +704,6 @@ function main() {
             refreshAllViews();
         }
     });
-
     nextMonthBtn.addEventListener('click', () => {
         if (!dailyView.classList.contains('hidden')) {
             const currentDate = new Date(state.selectedDate + 'T00:00:00');
@@ -831,10 +716,6 @@ function main() {
             refreshAllViews();
         }
     });
-
-    financeiroPrevMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() - 1); refreshAllViews(); });
-    financeiroNextMonthBtn.addEventListener('click', () => { state.currentDate.setMonth(state.currentDate.getMonth() + 1); refreshAllViews(); });
-
     openServiceModalBtn.addEventListener('click', () => {
         serviceModalTitle.textContent = 'Adicionar Serviço';
         addServiceForm.reset();
@@ -852,12 +733,18 @@ function main() {
             salonId: state.userSalonId
         };
         try {
-            if (id) { await updateDoc(doc(db, 'services', id), data); }
-            else { await addDoc(collection(db, 'services'), data); }
-            addServiceForm.reset(); addServiceModal.classList.add('hidden');
-        } catch (err) { console.error(err); }
+            if (id) {
+                await updateDoc(doc(db, 'services', id), data);
+            }
+            else {
+                await addDoc(collection(db, 'services'), data);
+            }
+            addServiceForm.reset();
+            addServiceModal.classList.add('hidden');
+        } catch (err) {
+            console.error(err);
+        }
     });
-
     openProfessionalModalBtn.addEventListener('click', () => {
         professionalModalTitle.textContent = 'Adicionar Profissional';
         addProfessionalForm.reset();
@@ -882,20 +769,24 @@ function main() {
             serviceIds: Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(cb => cb.value),
             salonId: state.userSalonId
         };
-        if (!data.name || !data.commission || !data.email) { alert('Preencha nome, e-mail e comissão.'); return; }
-
+        if (!data.name || !data.commission || !data.email) {
+            alert('Preencha nome, e-mail e comissão.');
+            return;
+        }
         try {
             if (id) {
-                const { salonId, email, ...updateData } = data; // Não permite alterar email ou salonId ao editar
+                const { salonId, email, ...updateData } = data;
                 await updateDoc(doc(db, 'professionals', id), updateData);
-            } else {
+            }
+            else {
                 await addDoc(collection(db, 'professionals'), data);
             }
             addProfessionalForm.reset();
             addProfessionalModal.classList.add('hidden');
-        } catch (err) { console.error(err); }
+        } catch (err) {
+            console.error(err);
+        }
     });
-
     document.getElementById('openClientModalBtn').addEventListener('click', () => {
         clientModalTitle.textContent = 'Adicionar Cliente';
         addClientForm.reset();
@@ -913,15 +804,24 @@ function main() {
             observations: document.getElementById('clientObservations').value,
             salonId: state.userSalonId
         };
-        if (!data.name || !data.phone) { alert('Nome e telefone são obrigatórios.'); return; }
+        if (!data.name || !data.phone) {
+            alert('Nome e telefone são obrigatórios.');
+            return;
+        }
         try {
-            if (id) { await updateDoc(doc(db, 'clients', id), data); }
-            else { await addDoc(collection(db, 'clients'), data); }
-            addClientForm.reset(); addClientModal.classList.add('hidden');
-        } catch (err) { console.error(err); }
+            if (id) {
+                await updateDoc(doc(db, 'clients', id), data);
+            }
+            else {
+                await addDoc(collection(db, 'clients'), data);
+            }
+            addClientForm.reset();
+            addClientModal.classList.add('hidden');
+        } catch (err) {
+            console.error(err);
+        }
     });
     closeClientProfileModalBtn.addEventListener('click', () => clientProfileModal.classList.add('hidden'));
-
     function openAppointmentModal(date, appointmentId = null) {
         addAppointmentForm.reset();
         document.getElementById('appointmentDate').value = date;
@@ -929,7 +829,6 @@ function main() {
         editAppointmentActions.classList.add('hidden');
         startAppointmentAction.classList.add('hidden');
         document.getElementById('appointmentObservationDisplay').classList.add('hidden');
-
         const clientSelect = document.getElementById('appointmentClient');
         clientSelect.innerHTML = '<option value="">Selecione um cliente</option>';
         state.clients.forEach(c => clientSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`);
@@ -939,7 +838,6 @@ function main() {
         const serviceSelect = document.getElementById('appointmentService');
         serviceSelect.innerHTML = '<option value="">Selecione um serviço</option>';
         state.services.forEach(s => serviceSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`);
-
         if (appointmentId) {
             const app = state.appointments.find(a => a.id === appointmentId);
             appointmentModalTitle.textContent = 'Editar Agendamento';
@@ -949,17 +847,18 @@ function main() {
             profSelect.value = app.professionalId;
             serviceSelect.value = app.serviceId;
             deleteAppointmentBtn.classList.remove('hidden');
-
             if (app.status === 'agendado') {
                 startAppointmentAction.classList.remove('hidden');
-            } else if (app.status === 'concluido') {
+            }
+            else if (app.status === 'concluido') {
                 editAppointmentActions.classList.remove('hidden');
             }
             if (app.observation) {
                 document.getElementById('appointmentObservationText').textContent = app.observation;
                 document.getElementById('appointmentObservationDisplay').classList.remove('hidden');
             }
-        } else {
+        }
+        else {
             appointmentModalTitle.textContent = 'Novo Agendamento';
             appointmentIdToEdit.value = '';
         }
@@ -972,12 +871,10 @@ function main() {
         const dateTime = new Date(`${document.getElementById('appointmentDate').value}T${document.getElementById('appointmentTime').value}`);
         const professionalId = document.getElementById('appointmentProfessional').value;
         const serviceId = document.getElementById('appointmentService').value;
-
         if (hasScheduleConflict({ id, professionalId, date: dateTime, serviceId })) {
             alert("Conflito de agenda! Esta profissional já está ocupada neste horário.");
             return;
         }
-
         const data = {
             date: Timestamp.fromDate(dateTime),
             clientId: document.getElementById('appointmentClient').value,
@@ -987,25 +884,38 @@ function main() {
             status: 'agendado',
             salonId: state.userSalonId
         };
-        if (!data.clientId || !data.professionalId || !data.serviceId) { alert('Preencha todos os campos.'); return; }
+        if (!data.clientId || !data.professionalId || !data.serviceId) {
+            alert('Preencha todos os campos.');
+            return;
+        }
         try {
-            if (id) { await updateDoc(doc(db, 'appointments', id), data); }
-            else { await addDoc(collection(db, 'appointments'), data); }
-            addAppointmentForm.reset(); addAppointmentModal.classList.add('hidden');
-        } catch (err) { console.error(err); }
+            if (id) {
+                await updateDoc(doc(db, 'appointments', id), data);
+            }
+            else {
+                await addDoc(collection(db, 'appointments'), data);
+            }
+            addAppointmentForm.reset();
+            addAppointmentModal.classList.add('hidden');
+        } catch (err) {
+            console.error(err);
+        }
     });
     deleteAppointmentBtn.addEventListener('click', () => {
         const id = appointmentIdToEdit.value;
-        if (!id) return;
+        if (!id)
+            return;
         showConfirmModal('Tem certeza que deseja excluir este agendamento?', () => {
             deleteDoc(doc(db, 'appointments', id))
-                .then(() => { addAppointmentModal.classList.add('hidden'); })
+                .then(() => {
+                addAppointmentModal.classList.add('hidden');
+            })
                 .catch(err => console.error(err));
         });
     });
-
     const updateAppointmentStatus = async (status, id, observation = null) => {
-        if (!id) return;
+        if (!id)
+            return;
         try {
             const dataToUpdate = { status };
             if (observation) {
@@ -1014,9 +924,11 @@ function main() {
             await updateDoc(doc(db, 'appointments', id), dataToUpdate);
             addAppointmentModal.classList.add('hidden');
             observationModal.classList.add('hidden');
-        } catch (err) { console.error(err); }
+        }
+        catch (err) {
+            console.error(err);
+        }
     };
-
     function openObservationModal(appointmentId) {
         document.getElementById('observationAppointmentId').value = appointmentId;
         observationForm.reset();
@@ -1024,10 +936,8 @@ function main() {
         reminderModal.classList.add('hidden');
         observationModal.classList.remove('hidden');
     }
-
     invoiceAppointmentBtn.addEventListener('click', () => openObservationModal(appointmentIdToEdit.value));
     reminderInvoiceBtn.addEventListener('click', (e) => openObservationModal(e.target.dataset.id));
-
     observationForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const id = document.getElementById('observationAppointmentId').value;
@@ -1039,13 +949,11 @@ function main() {
         updateAppointmentStatus('faturado', id);
     });
     cancelObservationBtn.addEventListener('click', () => observationModal.classList.add('hidden'));
-
     cancelAppointmentBtn.addEventListener('click', () => {
         showConfirmModal('Tem certeza que deseja cancelar este atendimento?', () => {
-            updateAppointmentStatus('cancelado', appointmentIdToEdit.value)
+            updateAppointmentStatus('cancelado', appointmentIdToEdit.value);
         });
     });
-
     function openBlockTimeModal(blockId = null) {
         blockTimeForm.reset();
         blockIdToEdit.value = '';
@@ -1059,29 +967,29 @@ function main() {
             profNameContainer.style.display = 'none';
             profSelect.innerHTML = '<option value="">Selecione um profissional</option>';
             state.professionals.forEach(p => profSelect.innerHTML += `<option value="${p.id}">${p.name}</option>`);
-        } else {
+        }
+        else {
             profSelectContainer.style.display = 'none';
             profNameContainer.style.display = 'block';
             document.getElementById('blockProfessionalName').textContent = state.professionalProfile.name;
         }
-
         if (blockId) {
             const block = state.appointments.find(b => b.id === blockId);
             document.getElementById('blockTimeModalTitle').textContent = 'Editar Bloqueio';
             blockIdToEdit.value = block.id;
-            if (state.role === 'salonOwner') profSelect.value = block.professionalId;
+            if (state.role === 'salonOwner')
+                profSelect.value = block.professionalId;
             document.getElementById('blockStartTime').value = block.date.toTimeString().substring(0, 5);
             const endTime = new Date(block.date.getTime() + block.duration * 60000);
             document.getElementById('blockEndTime').value = endTime.toTimeString().substring(0, 5);
             document.getElementById('blockReason').value = block.reason;
             deleteBlockBtn.classList.remove('hidden');
-        } else {
+        }
+        else {
             document.getElementById('blockTimeModalTitle').textContent = 'Bloquear Horário';
         }
-
         blockTimeModal.classList.remove('hidden');
     }
-
     closeBlockTimeModalBtn.addEventListener('click', () => blockTimeModal.classList.add('hidden'));
     blockTimeForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -1090,21 +998,17 @@ function main() {
         const startTime = document.getElementById('blockStartTime').value;
         const endTime = document.getElementById('blockEndTime').value;
         const professionalId = state.role === 'salonOwner' ? document.getElementById('blockProfessional').value : state.professionalProfile.id;
-
         if (!startTime || !endTime || !professionalId || endTime <= startTime) {
             alert('Por favor, preencha todos os campos e verifique se o horário de término é após o de início.');
             return;
         }
-
         const startDateTime = new Date(`${date}T${startTime}`);
         const endDateTime = new Date(`${date}T${endTime}`);
         const duration = (endDateTime - startDateTime) / 60000;
-
         if (hasScheduleConflict({ id, professionalId, date: startDateTime, duration })) {
             alert("Conflito de agenda! Já existe um agendamento ou bloqueio neste período.");
             return;
         }
-
         const data = {
             date: Timestamp.fromDate(startDateTime),
             professionalId: professionalId,
@@ -1114,22 +1018,31 @@ function main() {
             salonId: state.userSalonId
         };
         try {
-            if (id) { await updateDoc(doc(db, 'appointments', id), data); }
-            else { await addDoc(collection(db, 'appointments'), data); }
+            if (id) {
+                await updateDoc(doc(db, 'appointments', id), data);
+            }
+            else {
+                await addDoc(collection(db, 'appointments'), data);
+            }
             blockTimeForm.reset();
             blockTimeModal.classList.add('hidden');
-        } catch (err) { console.error(err); }
+        }
+        catch (err) {
+            console.error(err);
+        }
     });
     deleteBlockBtn.addEventListener('click', () => {
         const id = blockIdToEdit.value;
-        if (!id) return;
+        if (!id)
+            return;
         showConfirmModal('Tem certeza que deseja excluir este bloqueio?', () => {
             deleteDoc(doc(db, 'appointments', id))
-                .then(() => { blockTimeModal.classList.add('hidden'); })
+                .then(() => {
+                blockTimeModal.classList.add('hidden');
+            })
                 .catch(err => console.error(err));
         });
     });
-
     function openBlockDayModal() {
         document.getElementById('blockDayDate').textContent = new Date(state.selectedDate + 'T00:00:00').toLocaleDateString('pt-BR');
         const adminView = document.getElementById('blockDayProfessionalAdminView');
@@ -1142,22 +1055,20 @@ function main() {
             state.professionals.forEach(p => {
                 selectEl.innerHTML += `<option value="${p.id}">${p.name}</option>`;
             });
-        } else {
+        }
+        else {
             adminView.style.display = 'none';
             userView.style.display = 'block';
             document.getElementById('blockDayProfessionalName').textContent = state.professionalProfile.name;
         }
         blockDayModal.classList.remove('hidden');
     }
-
     openBlockTimeModalBtn.addEventListener('click', openBlockDayModal);
     closeBlockDayModalBtn.addEventListener('click', () => blockDayModal.classList.add('hidden'));
-
     blockDayForm.addEventListener('submit', (e) => {
         e.preventDefault();
         let professionalId;
         let professionalName;
-
         if (state.role === 'salonOwner') {
             const selectEl = document.getElementById('blockDayProfessional');
             professionalId = selectEl.value;
@@ -1166,23 +1077,19 @@ function main() {
                 return;
             }
             professionalName = selectEl.options[selectEl.selectedIndex].text;
-        } else {
+        }
+        else {
             professionalId = state.professionalProfile.id;
             professionalName = state.professionalProfile.name;
         }
-
-        const dayHasAppointments = state.appointments.some(app =>
-            app.professionalId === professionalId &&
+        const dayHasAppointments = state.appointments.some(app => app.professionalId === professionalId &&
             app.date.toISOString().split('T')[0] === state.selectedDate &&
             app.type === 'booking' &&
-            app.status !== 'cancelado'
-        );
-
+            app.status !== 'cancelado');
         if (dayHasAppointments) {
             alert(`Não é possível bloquear o dia para ${professionalName}, pois já existem agendamentos marcados. Por favor, cancele ou reagende os atendimentos primeiro.`);
             return;
         }
-
         showConfirmModal(`Tem certeza que deseja bloquear o dia inteiro para ${professionalName}?`, async () => {
             const START_HOUR = 8;
             const END_HOUR = 19;
@@ -1199,73 +1106,61 @@ function main() {
             try {
                 await addDoc(collection(db, 'appointments'), data);
                 blockDayModal.classList.add('hidden');
-            } catch (err) {
+            }
+            catch (err) {
                 console.error("Erro ao bloquear o dia:", err);
                 alert("Ocorreu um erro ao tentar bloquear o dia.");
             }
         });
     });
-
     function openActionChoiceModal(date, time) {
         state.tempSlot = { date, time };
         actionChoiceModal.classList.remove('hidden');
     }
-
     newAppointmentChoiceBtn.addEventListener('click', () => {
         actionChoiceModal.classList.add('hidden');
         openAppointmentModal(state.tempSlot.date);
         document.getElementById('appointmentTime').value = state.tempSlot.time;
     });
-
     blockTimeChoiceBtn.addEventListener('click', () => {
         actionChoiceModal.classList.add('hidden');
         openBlockTimeModal();
         document.getElementById('blockStartTime').value = state.tempSlot.time;
     });
-
     cancelActionChoiceBtn.addEventListener('click', () => {
         actionChoiceModal.classList.add('hidden');
     });
-
     function openWhatsAppMessageModal(clientId) {
         const client = state.clients.find(c => c.id === clientId);
-        if (!client) return;
-
+        if (!client)
+            return;
         state.tempClient = client;
         whatsappMessagesList.innerHTML = '';
-
         const professionalName = state.role === 'professional' ? state.professionalProfile.name : "Nós do Salão";
-
         whatsappMessages.forEach(msg => {
             const finalMsg = msg
                 .replace('{cliente}', client.name.split(' ')[0])
                 .replace('{profissional}', professionalName);
-
             const el = document.createElement('button');
             el.className = 'w-full text-left p-3 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm';
             el.textContent = finalMsg;
             el.dataset.message = finalMsg;
             whatsappMessagesList.appendChild(el);
         });
-
         whatsappMessageModal.classList.remove('hidden');
     }
-
     closeWhatsappMessageModalBtn.addEventListener('click', () => whatsappMessageModal.classList.add('hidden'));
-
     whatsappMessagesList.addEventListener('click', (e) => {
         const messageBtn = e.target.closest('button');
-        if (!messageBtn || !messageBtn.dataset.message) return;
-
+        if (!messageBtn || !messageBtn.dataset.message)
+            return;
         const message = messageBtn.dataset.message;
         const phone = state.tempClient.phone.replace(/\D/g, '');
         const encodedMessage = encodeURIComponent(message);
         const url = `https://wa.me/55${phone}?text=${encodedMessage}`;
-
         window.open(url, '_blank');
         whatsappMessageModal.classList.add('hidden');
     });
-
     function showReminderModal(app) {
         const client = state.clients.find(c => c.id === app.clientId);
         reminderText.textContent = `Atendimento de ${client?.name || 'Cliente'} finalizou. Deseja faturar ou reagendar?`;
@@ -1273,49 +1168,46 @@ function main() {
         reminderRescheduleBtn.dataset.id = app.id;
         reminderModal.classList.remove('hidden');
         const remindedApp = state.appointments.find(a => a.id === app.id);
-        if (remindedApp) remindedApp.reminderSent = true;
+        if (remindedApp)
+            remindedApp.reminderSent = true;
     }
-
     closeReminderModalBtn.addEventListener('click', () => reminderModal.classList.add('hidden'));
     reminderRescheduleBtn.addEventListener('click', (e) => {
         const appId = e.target.dataset.id;
         const app = state.appointments.find(a => a.id === appId);
-        if (app) openAppointmentModal(app.date.toISOString().split('T')[0], appId);
+        if (app)
+            openAppointmentModal(app.date.toISOString().split('T')[0], appId);
         reminderModal.classList.add('hidden');
     });
-
     function checkAppointmentsForReminders() {
-        if (state.role !== 'professional') return;
+        if (state.role !== 'professional')
+            return;
         const now = new Date();
         for (const app of state.appointments) {
-            if (app.status !== 'agendado' || app.type !== 'booking' || app.reminderSent) continue;
-
+            if (app.status !== 'agendado' || app.type !== 'booking' || app.reminderSent)
+                continue;
             const service = state.services.find(s => s.id === app.serviceId);
-            if (!service) continue;
-
+            if (!service)
+                continue;
             const endTime = new Date(app.date.getTime() + service.duration * 60000);
             const reminderTime = new Date(endTime.getTime() + 10 * 60000);
-
             if (now > reminderTime) {
                 showReminderModal(app);
                 break;
             }
         }
     }
-
     function openAnamnesisModal(appointmentId) {
         const app = state.appointments.find(a => a.id === appointmentId);
         const client = state.clients.find(c => c.id === app.clientId);
-        if (!app || !client) return;
-
+        if (!app || !client)
+            return;
         anamnesisForm.reset();
-        state.signaturePad.clear(); // CORRIGIDO: usa state.signaturePad
-
+        state.signaturePad.clear(); 
         document.getElementById('anamnesisAppointmentId').value = app.id;
         document.getElementById('anamnesisClientId').value = client.id;
         document.getElementById('anamnesisClientName').textContent = client.name;
         document.getElementById('anamnesisClientPhone').textContent = client.phone;
-
         if (client.anamnesisHistory && client.anamnesisHistory.length > 0) {
             const lastRecord = client.anamnesisHistory[client.anamnesisHistory.length - 1];
             Object.keys(lastRecord.answers).forEach(key => {
@@ -1323,32 +1215,29 @@ function main() {
                 const input = anamnesisForm.querySelector(`[name="${key}"][value="${value}"]`);
                 if (input && input.type === 'radio') {
                     input.checked = true;
-                } else {
+                }
+                else {
                     const textInput = anamnesisForm.querySelector(`[name="${key}"]`);
-                    if (textInput) textInput.value = value;
+                    if (textInput)
+                        textInput.value = value;
                 }
             });
         }
-
         addAppointmentModal.classList.add('hidden');
         anamnesisModal.classList.remove('hidden');
     }
-
     startAppointmentBtn.addEventListener('click', () => {
         const appId = appointmentIdToEdit.value;
         openAnamnesisModal(appId);
     });
-
-    clearSignatureBtn.addEventListener('click', () => state.signaturePad.clear()); // CORRIGIDO: usa state.signaturePad
+    clearSignatureBtn.addEventListener('click', () => state.signaturePad.clear()); 
     closeAnamnesisModalBtn.addEventListener('click', () => anamnesisModal.classList.add('hidden'));
-
     anamnesisForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        if (state.signaturePad.isEmpty()) { // CORRIGIDO: usa state.signaturePad
+        if (state.signaturePad.isEmpty()) { 
             alert('A assinatura do cliente é obrigatória.');
             return;
         }
-
         const clientId = document.getElementById('anamnesisClientId').value;
         const appointmentId = document.getElementById('anamnesisAppointmentId').value;
         const formData = new FormData(anamnesisForm);
@@ -1356,63 +1245,53 @@ function main() {
         for (let [key, value] of formData.entries()) {
             answers[key] = value;
         }
-
         const newRecord = {
             date: Timestamp.now(),
             answers: answers,
-            signature: state.signaturePad.toDataURL() // CORRIGIDO: usa state.signaturePad
+            signature: state.signaturePad.toDataURL() 
         };
-
         try {
             const clientRef = doc(db, 'clients', clientId);
             const clientSnap = await getDoc(clientRef);
-
             if (clientSnap.exists()) {
                 const existingHistory = clientSnap.data().anamnesisHistory || [];
                 const updatedHistory = [...existingHistory, newRecord];
-
                 await updateDoc(clientRef, {
                     anamnesisHistory: updatedHistory
                 });
-
                 await updateDoc(doc(db, 'appointments', appointmentId), {
                     status: 'concluido'
                 });
-
                 anamnesisModal.classList.add('hidden');
-            } else {
+            }
+            else {
                 console.error("Cliente não encontrado para salvar anamnese.");
                 alert("Ocorreu um erro: cliente não encontrado.");
             }
-
-        } catch (err) {
+        }
+        catch (err) {
             console.error("Erro ao salvar ficha:", err);
             alert("Ocorreu um erro ao salvar a ficha. Tente novamente.");
         }
     });
-
     function openClientProfileModal(clientId) {
         const client = state.clients.find(c => c.id === clientId);
-        if (!client) return;
-
+        if (!client)
+            return;
         document.getElementById('profileClientName').textContent = client.name;
         document.getElementById('profileClientPhone').textContent = client.phone;
         document.getElementById('profileClientAddress').textContent = client.address || 'Não informado';
         document.getElementById('profileClientObservations').textContent = client.observations || 'Nenhuma observação.';
-
         const historyContainer = document.getElementById('anamnesisHistoryContainer');
         historyContainer.innerHTML = '';
         if (client.anamnesisHistory && client.anamnesisHistory.length > 0) {
             [...client.anamnesisHistory].reverse().forEach(record => {
                 const el = document.createElement('details');
                 el.className = 'bg-gray-100 p-2 rounded-lg text-sm';
-
                 const contentDiv = document.createElement('div');
                 contentDiv.className = 'mt-2 pt-2 border-t text-xs space-y-1';
-
                 const answers = record.answers;
                 const formatYesNo = (value) => (value || 'nao').replace('nao', 'Não').replace('sim', 'Sim');
-
                 contentDiv.innerHTML = `
                     <p><strong>1. Alergias:</strong> ${answers.alergia === 'sim' ? `Sim - ${answers.alergia_qual || 'Não especificado'}` : 'Não'}</p>
                     <p><strong>2. Doenças de Pele:</strong> ${answers.doenca_pele === 'sim' ? `Sim - ${answers.doenca_pele_qual || 'Não especificado'}` : 'Não'}</p>
@@ -1423,12 +1302,10 @@ function main() {
                     <p class="mt-2"><strong>Assinatura:</strong></p>
                     <img src="${record.signature}" class="border rounded">
                 `;
-
                 const summary = document.createElement('summary');
                 summary.className = 'font-semibold cursor-pointer flex justify-between items-center';
                 const dateText = document.createElement('span');
                 dateText.textContent = `Ficha de ${record.date.toDate().toLocaleDateString('pt-BR')}`;
-
                 const pdfButton = document.createElement('button');
                 pdfButton.className = 'bg-red-500 text-white px-2 py-1 text-xs rounded hover:bg-red-600';
                 pdfButton.innerHTML = '<i class="fas fa-file-pdf mr-1"></i> Exportar';
@@ -1436,51 +1313,51 @@ function main() {
                     e.preventDefault();
                     exportAnamnesisToPDF(client, record);
                 };
-
                 summary.appendChild(dateText);
                 summary.appendChild(pdfButton);
                 el.appendChild(summary);
                 el.appendChild(contentDiv);
                 historyContainer.appendChild(el);
             });
-        } else {
+        }
+        else {
             historyContainer.innerHTML = `<p class="text-sm text-gray-500">Nenhum histórico encontrado.</p>`;
         }
-
         clientProfileModal.classList.remove('hidden');
     }
-
     confirmModalOk.addEventListener('click', () => {
-        if (typeof confirmAction === 'function') { confirmAction(); }
+        if (typeof confirmAction === 'function') {
+            confirmAction();
+        }
         confirmModal.classList.add('hidden');
     });
     confirmModalCancel.addEventListener('click', () => confirmModal.classList.add('hidden'));
-
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const pageId = e.currentTarget.dataset.page;
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
             document.getElementById(pageId)?.classList.add('active');
             document.querySelectorAll('.nav-btn').forEach(nav => {
-                nav.classList.remove('text-blue-600', 'font-bold'); nav.classList.add('text-gray-400'); nav.querySelector('p').classList.remove('font-bold');
+                nav.classList.remove('text-blue-600', 'font-bold');
+                nav.classList.add('text-gray-400');
+                nav.querySelector('p').classList.remove('font-bold');
             });
-            e.currentTarget.classList.add('text-blue-600'); e.currentTarget.classList.remove('text-gray-400'); e.currentTarget.querySelector('p').classList.add('font-bold');
+            e.currentTarget.classList.add('text-blue-600');
+            e.currentTarget.classList.remove('text-gray-400');
+            e.currentTarget.querySelector('p').classList.add('font-bold');
         });
     });
-
     onAuthStateChanged(auth, async (user) => {
-        if (state.reminderInterval) clearInterval(state.reminderInterval);
+        if (state.reminderInterval)
+            clearInterval(state.reminderInterval);
         state.unsubscribes.forEach(unsub => unsub());
         state.unsubscribes.length = 0;
-
         if (user) {
             state.user = user;
             let foundRole = false;
-
             const professionalsRef = collection(db, 'professionals');
             const q = query(professionalsRef, where("userId", "==", user.uid));
             const professionalSnapshot = await getDocs(q);
-
             if (!professionalSnapshot.empty) {
                 const professionalDoc = professionalSnapshot.docs[0];
                 state.professionalProfile = { id: professionalDoc.id, ...professionalDoc.data() };
@@ -1489,12 +1366,10 @@ function main() {
                 state.reminderInterval = setInterval(checkAppointmentsForReminders, 60000);
                 foundRole = true;
             }
-
             if (!foundRole) {
                 const salonsRef = collection(db, 'salons');
                 const q = query(salonsRef, where("ownerId", "==", user.uid));
                 const salonSnapshot = await getDocs(q);
-
                 if (!salonSnapshot.empty) {
                     const salonDoc = salonSnapshot.docs[0];
                     state.role = 'salonOwner';
@@ -1502,25 +1377,23 @@ function main() {
                     foundRole = true;
                 }
             }
-
             if (!foundRole) {
                 console.log("Usuário sem papel definido. Deslogando.");
                 signOut(auth);
                 return;
             }
-
             if (state.userSalonId) {
                 const salonRef = doc(db, 'salons', state.userSalonId);
                 const salonSnap = await getDoc(salonRef);
                 if (salonSnap.exists()) {
                     state.salonInfo = salonSnap.data();
-                } else {
+                }
+                else {
                     console.error("Salão não encontrado para o ID:", state.userSalonId);
                     signOut(auth);
                     return;
                 }
             }
-
             const renderAll = () => {
                 updateSalonHeader();
                 renderServices(document.getElementById('servicesList'));
@@ -1528,25 +1401,22 @@ function main() {
                 renderClients(document.getElementById('clientsList'));
                 renderAppointmentsForDay(document.getElementById('appointmentsForDay'), document.getElementById('appointmentsTitle'), state.selectedDate);
                 renderDashboard(document.getElementById('agendamentosHoje'), document.getElementById('faturamentoHoje'), document.getElementById('totalClientes'), document.getElementById('totalServicos'), document.getElementById('proximosAgendamentos'));
-                renderFinanceiro(document.getElementById('financeiroCurrentMonthYear'), document.getElementById('detalhesFinanceiro'), document.getElementById('faturamentoTotalMes'), document.getElementById('ganhosProfissionalMes'));
+                renderFinancialPage(state);
                 renderCalendar(document.getElementById('calendarDays'), document.getElementById('currentMonthYear'));
                 if (!document.getElementById('dailyView').classList.contains('hidden')) {
                     renderDailyView(document.getElementById('dailyViewTimeSlots'), document.getElementById('dailyViewTitle'), state.selectedDate, openActionChoiceModal);
                 }
             };
-
             const collectionsToListen = {
                 services: "services",
                 clients: "clients",
                 professionals: "professionals",
                 appointments: "appointments"
             };
-
             Object.keys(collectionsToListen).forEach(key => {
                 const collectionName = collectionsToListen[key];
                 const collectionRef = collection(db, collectionName);
                 const q = query(collectionRef, where("salonId", "==", state.userSalonId));
-
                 const unsub = onSnapshot(q, (snapshot) => {
                     state[key] = snapshot.docs.map(doc => ({
                         id: doc.id,
@@ -1557,13 +1427,11 @@ function main() {
                 });
                 state.unsubscribes.push(unsub);
             });
-
             updateUIVisibility();
             appContainer.classList.remove('hidden');
             loginPage.classList.add('hidden');
-
-        } else {
-            // Reseta as propriedades do objeto state uma a uma
+        }
+        else {
             state.user = null;
             state.role = 'client';
             state.userSalonId = null;
@@ -1573,16 +1441,14 @@ function main() {
             state.professionals = [];
             state.clients = [];
             state.services = [];
-
-            // O resto do código continua igual
             appContainer.classList.add('hidden');
             loginPage.classList.remove('hidden');
         }
         setTimeout(() => loadingOverlay.classList.add('hidden'), 500);
     });
-
     servicesList.addEventListener('click', (e) => {
-        if (state.role !== 'salonOwner') return;
+        if (state.role !== 'salonOwner')
+            return;
         const editBtn = e.target.closest('.edit-service-btn');
         const deleteBtn = e.target.closest('.delete-service-btn');
         if (editBtn) {
@@ -1604,21 +1470,19 @@ function main() {
             });
         }
     });
-
     clientsList.addEventListener('click', (e) => {
         const whatsAppBtn = e.target.closest('.whatsapp-btn');
         if (whatsAppBtn) {
             openWhatsAppMessageModal(whatsAppBtn.dataset.id);
             return;
         }
-
         const profileBtn = e.target.closest('.client-profile-btn');
         if (profileBtn) {
             openClientProfileModal(profileBtn.dataset.id);
             return;
         }
-
-        if (state.role !== 'salonOwner') return;
+        if (state.role !== 'salonOwner')
+            return;
         const editBtn = e.target.closest('.edit-client-btn');
         const deleteBtn = e.target.closest('.delete-client-btn');
         if (editBtn) {
@@ -1641,9 +1505,9 @@ function main() {
             });
         }
     });
-
     professionalsList.addEventListener('click', (e) => {
-        if (state.role !== 'salonOwner') return;
+        if (state.role !== 'salonOwner')
+            return;
         const editBtn = e.target.closest('.edit-professional-btn');
         const deleteBtn = e.target.closest('.delete-professional-btn');
         if (editBtn) {
@@ -1673,7 +1537,6 @@ function main() {
             });
         }
     });
-
     const handleAgendaClick = (e) => {
         const whatsAppBtn = e.target.closest('.whatsapp-btn');
         if (whatsAppBtn) {
@@ -1681,7 +1544,6 @@ function main() {
             openWhatsAppMessageModal(whatsAppBtn.dataset.id);
             return;
         }
-
         const itemCard = e.target.closest('[data-id]');
         if (itemCard) {
             const appId = itemCard.dataset.id;
@@ -1689,13 +1551,13 @@ function main() {
             if (app) {
                 if (app.type === 'block') {
                     openBlockTimeModal(app.id);
-                } else {
+                }
+                else {
                     openAppointmentModal(app.date.toISOString().split('T')[0], app.id);
                 }
             }
         }
     };
-
     appointmentsForDay.addEventListener('click', handleAgendaClick);
     dailyViewTimeSlots.addEventListener('click', handleAgendaClick);
 }
