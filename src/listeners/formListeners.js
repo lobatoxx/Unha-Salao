@@ -4,7 +4,6 @@ import { state } from '../state.js';
 import * as DOMElements from '../ui/domElements.js';
 import * as FirestoreService from '../services/firestoreService.js';
 import * as ModalManager from '../ui/modalManager.js';
-import { refreshAllViews } from './viewListeners.js';
 
 // --- Lógica de Validação (Regras de Negócio) ---
 function hasScheduleConflict({ id, professionalId, date, serviceId, duration: blockDuration }) {
@@ -22,7 +21,7 @@ function hasScheduleConflict({ id, professionalId, date, serviceId, duration: bl
 
     for (const existingApp of state.appointments) {
         if (existingApp.professionalId !== professionalId) continue;
-        if (id && existingApp.id === id) continue; // Ignora o próprio agendamento ao editar
+        if (id && existingApp.id === id) continue;
 
         let existingDuration = 0;
         if (existingApp.type === 'block') {
@@ -63,7 +62,6 @@ async function handleServiceSubmit(e) {
             await FirestoreService.addService(data);
         }
         ModalManager.hideAllModals();
-        refreshAllViews();
     } catch (err) {
         console.error("Erro ao salvar serviço:", err);
         alert("Não foi possível salvar o serviço.");
@@ -94,7 +92,6 @@ async function handleProfessionalSubmit(e) {
             await FirestoreService.addProfessional(data);
         }
         ModalManager.hideAllModals();
-        refreshAllViews();
     } catch (err) {
         console.error("Erro ao salvar profissional:", err);
         alert("Não foi possível salvar o profissional.");
@@ -123,7 +120,6 @@ async function handleClientSubmit(e) {
             await FirestoreService.addClient(data);
         }
         ModalManager.hideAllModals();
-        refreshAllViews();
     } catch (err) {
         console.error("Erro ao salvar cliente:", err);
         alert("Não foi possível salvar o cliente.");
@@ -167,86 +163,9 @@ async function handleAppointmentSubmit(e) {
             await FirestoreService.addAppointment(data);
         }
         ModalManager.hideAllModals();
-        refreshAllViews();
     } catch (err) {
         console.error("Erro ao salvar agendamento:", err);
         alert("Não foi possível salvar o agendamento.");
-    }
-}
-
-async function handleBlockTimeSubmit(e) {
-    e.preventDefault();
-    const id = DOMElements.blockIdToEdit.value;
-    const date = DOMElements.blockDate.value;
-    const startTime = DOMElements.blockStartTime.value;
-    const endTime = DOMElements.blockEndTime.value;
-    const startDateTime = new Date(`${date}T${startTime}`);
-    const endDateTime = new Date(`${date}T${endTime}`);
-
-    if (endDateTime <= startDateTime) {
-        alert("O horário de término deve ser após o horário de início.");
-        return;
-    }
-
-    const duration = (endDateTime - startDateTime) / 60000;
-    const professionalId = (state.role === 'salonOwner') ? DOMElements.blockProfessional.value : state.professionalProfile.id;
-
-    if (hasScheduleConflict({ id, professionalId, date: startDateTime, duration })) {
-        alert("Conflito de agenda! Já existe um agendamento neste intervalo.");
-        return;
-    }
-
-    const data = {
-        date: startDateTime,
-        professionalId,
-        duration,
-        reason: DOMElements.blockReason.value,
-        type: 'block',
-        salonId: state.userSalonId
-    };
-
-    try {
-        if (id) {
-            await FirestoreService.updateAppointment(id, data);
-        } else {
-            await FirestoreService.addAppointment(data);
-        }
-        ModalManager.hideAllModals();
-        refreshAllViews();
-    } catch (err) {
-        console.error("Erro ao salvar bloqueio:", err);
-        alert("Não foi possível salvar o bloqueio de horário.");
-    }
-}
-
-async function handleBlockDaySubmit(e) {
-    e.preventDefault();
-    const date = state.selectedDate;
-    const professionalId = DOMElements.blockDayProfessional.value;
-    const professionalsToBlock = professionalId ? [state.professionals.find(p => p.id === professionalId)] : state.professionals;
-
-    const confirmed = await ModalManager.showConfirmModal(`Tem certeza que deseja bloquear o dia ${new Date(date + 'T00:00:00').toLocaleDateString('pt-BR')} para ${professionalId ? professionalsToBlock[0].name : 'todos os profissionais'}?`);
-    if (!confirmed) return;
-
-    const blockPromises = professionalsToBlock.map(prof => {
-        const data = {
-            date: new Date(`${date}T08:00:00`),
-            professionalId: prof.id,
-            duration: 660,
-            reason: 'Dia bloqueado',
-            type: 'block',
-            salonId: state.userSalonId,
-        };
-        return FirestoreService.addAppointment(data);
-    });
-
-    try {
-        await Promise.all(blockPromises);
-        ModalManager.hideAllModals();
-        refreshAllViews();
-    } catch (err) {
-        console.error("Erro ao bloquear o dia:", err);
-        alert("Ocorreu um erro ao tentar bloquear a agenda.");
     }
 }
 
@@ -280,10 +199,106 @@ async function handleAnamnesisSubmit(e) {
         await FirestoreService.updateClientAnamnesis(clientId, updatedHistory);
         await FirestoreService.updateAppointmentStatus(appointmentId, 'concluido');
         ModalManager.hideAllModals();
-        refreshAllViews();
     } catch (err) {
         console.error("Erro ao salvar ficha de anamnese:", err);
         alert("Ocorreu um erro ao salvar a ficha. Tente novamente.");
+    }
+}
+
+async function handleBlockTimeSubmit(e) {
+    e.preventDefault();
+    const id = DOMElements.blockIdToEdit.value;
+    const dateValue = DOMElements.blockDate.value;
+    const startTimeValue = document.getElementById('blockStartTime').value;
+    const endTimeValue = document.getElementById('blockEndTime').value;
+
+    const startDateTime = new Date(`${dateValue}T${startTimeValue}`);
+    const endDateTime = new Date(`${dateValue}T${endTimeValue}`);
+    
+    if (endDateTime <= startDateTime) {
+        alert("O horário de término deve ser posterior ao de início.");
+        return;
+    }
+
+    const duration = (endDateTime.getTime() - startDateTime.getTime()) / 60000;
+    
+    const professionalId = (state.role === 'salonOwner') 
+        ? document.getElementById('blockProfessional').value 
+        : state.professionalProfile.id;
+
+    if (!professionalId) {
+        alert("Selecione um profissional.");
+        return;
+    }
+
+    if (hasScheduleConflict({ id, professionalId, date: startDateTime, duration: duration })) {
+        alert("Conflito de agenda! Este profissional já tem um compromisso neste horário.");
+        return;
+    }
+
+    const data = {
+        date: startDateTime,
+        duration: duration,
+        professionalId: professionalId,
+        reason: document.getElementById('blockReason').value,
+        type: 'block',
+        salonId: state.userSalonId,
+        status: 'bloqueado'
+    };
+
+    try {
+        if (id) {
+            await FirestoreService.updateAppointment(id, data);
+        } else {
+            await FirestoreService.addAppointment(data);
+        }
+        ModalManager.hideAllModals();
+    } catch (err) {
+        console.error("Erro ao salvar bloqueio:", err);
+        alert("Não foi possível salvar o bloqueio.");
+    }
+}
+
+async function handleBlockDaySubmit(e) {
+    e.preventDefault();
+    const dateValue = new Date(state.selectedDate + 'T00:00:00');
+    
+    let professionalIds = [];
+    if (state.role === 'salonOwner') {
+        const selectedProfId = document.getElementById('blockDayProfessional').value;
+        if (selectedProfId) {
+            professionalIds.push(selectedProfId);
+        } else {
+            professionalIds = state.professionals.map(p => p.id);
+        }
+    } else {
+        professionalIds.push(state.professionalProfile.id);
+    }
+
+    if (professionalIds.length === 0) {
+        alert("Nenhum profissional selecionado para o bloqueio.");
+        return;
+    }
+
+    const promises = professionalIds.map(profId => {
+        const data = {
+            date: new Date(dateValue.setHours(8, 0, 0, 0)),
+            duration: 660, // 11 horas (das 8h às 19h)
+            professionalId: profId,
+            reason: 'Dia bloqueado',
+            type: 'block',
+            salonId: state.userSalonId,
+            status: 'bloqueado'
+        };
+        return FirestoreService.addAppointment(data);
+    });
+
+    try {
+        await Promise.all(promises);
+        ModalManager.hideAllModals();
+    } catch (err) {
+        console.error("Erro ao bloquear o dia:", err);
+        alert("Não foi possível bloquear o dia para um ou mais profissionais.");
     }
 }
 
